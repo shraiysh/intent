@@ -1,9 +1,8 @@
 var T = THREE;
-var frames = 0, seconds = new Date().getSeconds(), fps;
+var frames = 0, lasFrameTime = new Date(), fps;
 
 var scene = new T.Scene();
 var camera = new T.PerspectiveCamera( 75, window.innerWidth/window.innerHeight, 0.1, 1000 );
-var controls = new T.OrbitControls( camera );
 
 var renderer = new T.WebGLRenderer();
 renderer.setSize( window.innerWidth, window.innerHeight );
@@ -29,58 +28,80 @@ var room = {
 	}
 }
 
+var printInfo = false;
+
 var player = {
 	material : new T.MeshPhongMaterial( { color: 0x00ff00 } ),
 	dubba : new T.Mesh( new T.BoxGeometry(1, 2, 1), undefined ),
-	flagRelX: 0, flagRelZ: 0,
-	speed: 200,
+	flag: Array(4).fill(false), //flags for each input key, true => Key is down and vice versa
+	// 0 - a
+	// 1 - s
+	// 2 - d
+	// 3 - w
+	speed: 0.05, camera: undefined,
 
-	init : function () {
+	init : function (camera) {
+		this.camera = camera;
 		this.dubba.material = this.material;
 		document.addEventListener("keydown", this.onKeyDown, false);
 		document.addEventListener("keyup", this.onKeyUp, false);
 		this.addToScene();
+		this.dubba.add(this.camera);
+		this.camera.position.set(0, 1, 2);
 	},
 	addToScene: function () {
 		scene.add(this.dubba);
 	},
-	onKeyDown: function (event) {
-		// console.log("Key Downed -----------");
-		if(event.key === 'a' && this.flagRelX === 0){
-			this.flagRelX = -1; 
-		} else if(event.key === 's') {
-			this.flagRelZ = +1; 
-		} else if(event.key === 'd') {
-			this.flagRelX = +1; 
-		} else if(event.key === 'w') {
-			this.flagRelZ = -1; 
-		}
-	},
-	onKeyUp: function (event) {
-		// console.log("Key Upped >>>>");
-		if(event.key === 'a'){
-			this.flagRelX = 0; 
-		} else if(event.key === 's') {
-			this.flagRelZ = 0; 
-		} else if(event.key === 'd') {
-			this.flagRelX = 0; 
-		} else if(event.key === 'w') {
-			this.flagRelZ = 0; 
-		}
-	},
 	update: function (dT) {
-		// console.log("up");
-		if(this.flagRelX !== 0) console.log("YAY");
-		player.dubba.translateOnAxis({
-			x: dT * this.flagRelX, 
-			y: 0, 
-			z: dT * this.flagRelZ
-		}, this.speed);
+		var lookVector = new T.Vector3(
+			-camera.position.x, 0,
+			-camera.position.z).normalize();
+		if(printInfo) {
+			console.log("this.dubba.position = ", this.dubba.position);
+			console.log("camera.position = ", camera.position);
+			printInfo = false;
+		}
+		var left = new T.Vector3(lookVector.z, 0, - lookVector.x); //left = y cross lookVector
+		var disp = new T.Vector3();
+
+		if(this.flag[0]) disp.add(left);
+		if(this.flag[3]) disp.add(lookVector);
+		if(this.flag[2]) disp.add(left.negate());
+		if(this.flag[1]) disp.add(lookVector.negate());
+
+		disp.normalize().multiplyScalar(dT * this.speed);
+		player.dubba.position.add(disp);
+	},
+
+	onKeyDown : function (event) {
+		switch(event.key){
+			case 'a':
+				player.flag[0] = true; break;
+			case 's':
+				player.flag[1] = true; break;
+			case 'd':
+				player.flag[2] = true; break;
+			case 'w':
+				player.flag[3] = true; break;
+		}
+	},
+	onKeyUp : function (event) {
+		switch(event.key){
+			case 'a':
+				player.flag[0] = false; break;
+			case 's':
+				player.flag[1] = false; break;
+			case 'd':
+				player.flag[2] = false; break;
+			case 'w':
+				player.flag[3] = false; break;
+		}
 	}
 }
 
 room.init();
-player.init();
+player.init(camera);
+var controls = new THREE.OrbitControls( camera, document );
 
 camera.position.set(0, 2, 5);
 
@@ -88,6 +109,7 @@ var animate = function () {
 	requestAnimationFrame( animate );
 
 	controls.update();
+	camera.lookAt( player.dubba.position );
 	renderer.render( scene, camera );
 	var dT = calcFPS();
 	player.update(dT);
@@ -96,13 +118,14 @@ var animate = function () {
 var calcFPS = function () {
 	frames++;
 	var time = new Date();
-	var dT = (time.getSeconds() - seconds) + time.getMilliseconds() / 1000;
-	if(dT > 1){
-		fps = frames / dT;
-		seconds = time.getSeconds();
+	var dT = time.getMilliseconds() - lasFrameTime.getMilliseconds();
+	if(dT < 0){
+		fps = frames / (1 + 0.001 * time.getMilliseconds());
 		frames = 0;
-		// console.log(fps);
+		dT += 1000;
+		// console.log(fps);s
 	}
+	lasFrameTime = time;
 	return dT;
 }
 
