@@ -28,16 +28,13 @@ var room = {
 	}
 }
 
-var printInfo = false;
+var printInfo = false; //Debug only
 
 var player = {
 	material : new T.MeshPhongMaterial( { color: 0x00ff00 } ),
 	dubba : new T.Mesh( new T.BoxGeometry(1, 2, 1), undefined ),
-	flag: Array(4).fill(false), //flags for each input key, true => Key is down and vice versa
-	// 0 - a
-	// 1 - s
-	// 2 - d
-	// 3 - w
+	flag: Array(4).fill(false), 
+	keyIndexMap: [['a', 0], ['s', 1], ['d', 2], ['w', 3]],
 	speed: 0.05, camera: undefined,
 
 	init : function (camera) {
@@ -56,11 +53,7 @@ var player = {
 		var lookVector = new T.Vector3(
 			-camera.position.x, 0,
 			-camera.position.z).normalize();
-		if(printInfo) {
-			console.log("this.dubba.position = ", this.dubba.position);
-			console.log("camera.position = ", camera.position);
-			printInfo = false;
-		}
+
 		var left = new T.Vector3(lookVector.z, 0, - lookVector.x); //left = y cross lookVector
 		var disp = new T.Vector3();
 
@@ -72,30 +65,15 @@ var player = {
 		disp.normalize().multiplyScalar(dT * this.speed);
 		player.dubba.position.add(disp);
 	},
-
+	keyHandling: function(event, val) {
+		player.keyIndexMap.filter((item) => item[0] === event.key )
+			.forEach((item) => player.flag[item[1]] = val);
+	},
 	onKeyDown : function (event) {
-		switch(event.key){
-			case 'a':
-				player.flag[0] = true; break;
-			case 's':
-				player.flag[1] = true; break;
-			case 'd':
-				player.flag[2] = true; break;
-			case 'w':
-				player.flag[3] = true; break;
-		}
+		player.keyHandling(event, true);
 	},
 	onKeyUp : function (event) {
-		switch(event.key){
-			case 'a':
-				player.flag[0] = false; break;
-			case 's':
-				player.flag[1] = false; break;
-			case 'd':
-				player.flag[2] = false; break;
-			case 'w':
-				player.flag[3] = false; break;
-		}
+		player.keyHandling(event, false);
 	}
 }
 
