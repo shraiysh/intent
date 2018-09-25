@@ -63,7 +63,7 @@ var player = {
 			player.clone.dubba.add(player.cloneEffect.mesh);
 			player.cloneEffect.cloning = true;
 			player.cloneEffect.cloneStartingTime = new Date(); 
-			player.createClone(player);
+			this.createClone(player);
 		},
 		createClone: function(player) {
 			player.clone.dubba.translateX( player.dubba.position.x - player.clone.dubba.position.x );
@@ -103,11 +103,13 @@ var player = {
 	teleport : {
 		teleporting: false,
 		teleport: function(player) {
-			var p1 = player.dubba.position;
-			var p2 = player.clone.dubba.position;
-			var temp = new T.Vector3(p1.x, p1.y, p1.z);
-			p1.set(p2.x, p2.y, p2.z);
-			p2.set(temp.x, temp.y, temp.z);
+			if(player.clone.isAlive) {
+				var p1 = player.dubba.position;
+				var p2 = player.clone.dubba.position;
+				var temp = new T.Vector3(p1.x, p1.y, p1.z);
+				p1.set(p2.x, p2.y, p2.z);
+				p2.set(temp.x, temp.y, temp.z);
+			}
 		},
 	},
 	init : function (camera) {
