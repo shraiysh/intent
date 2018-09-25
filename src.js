@@ -11,8 +11,8 @@ document.body.appendChild( renderer.domElement );
 var room = {
 	material : new T.MeshPhongMaterial(),
 	floor : {
-		width : 100, length : 100, thickness : 1,
-		rows: 10, cols: 10, yPosition: -10,
+		width : 100, length : 100, thickness : 1, yPosition: -10,
+		rows: 10, cols: 10, blockMargin: 0.03,
 		mesh: [],
 	},
 	light: new T.PointLight(0xffffff, 0.75, 10000, 2),
@@ -26,7 +26,11 @@ var room = {
 		for( var row = 0; row < this.floor.rows; row++ ) {
 			this.floor.mesh[row] = [];
 			for( var col = 0; col < this.floor.cols; col++ ) {
-				var TObject = new T.Mesh(new T.BoxGeometry(blockWidth, blockThickness, blockLength), undefined);
+				var TObject = new T.Mesh(new T.BoxGeometry(
+					blockWidth - this.floor.blockMargin,
+					blockThickness,
+					blockLength - this.floor.blockMargin
+				), undefined);
 				TObject.material = this.material;
 				TObject.position.set(
 					( this.floor.width + blockWidth ) * ( -1 / 2 ) + row * blockWidth,
