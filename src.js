@@ -66,14 +66,57 @@ var player = {
 		cloning: false, 
 		cloneTime: 1, //Seconds
 		cloneStartingTime: undefined,
+		startCloning: function(player) {
+			player.clone.dubba.add(player.cloneEffect.mesh);
+			player.cloneEffect.cloning = true;
+			player.cloneEffect.cloneStartingTime = new Date(); 
+			player.createClone(player);
+		},
+		createClone: function(player) {
+			player.clone.dubba.translateX( player.dubba.position.x - player.clone.dubba.position.x );
+			player.clone.dubba.translateY( player.dubba.position.y - player.clone.dubba.position.y );
+			player.clone.dubba.translateZ( player.dubba.position.z - player.clone.dubba.position.z );
+			if(!player.clone.isAlive) {
+				player.clone.isAlive = true;
+				scene.add(player.clone.dubba);
+			}
+		},
+		continueCloning: function(player) {
+			//Assumes Key state is already checked
+			var c = player.cloneEffect;
+			if(c.cloning){
+				var time = new Date();
+				var delT = (time.getSeconds() - c.cloneStartingTime.getSeconds()) 
+					+ (time.getMilliseconds() - c.cloneStartingTime.getMilliseconds())/1000;
+				if(delT > c.cloneTime){
+					//Cloning Completed, Place a form there
+					c.cloning = false;
+					player.clone.dubba.remove(c.mesh);
+				}
+				else{
+					var r = (delT / c.cloneTime);
+					c.mesh.scale.x = c.mesh.scale.y = c.mesh.scale.z = r;
+					c.mesh.material.opacity = 1 - r;
+				}
+			}
+		},
 	},
 	flag: Array(5).fill(false), 
-	keyIndexMap: [['a', 0], ['s', 1], ['d', 2], ['w', 3], ['e', 4]],
+	keyIndexMap: [['a', 0], ['s', 1], ['d', 2], ['w', 3], ['e', 4], ['q', 5]],
 	speed: 0.05, camera: undefined,
 	clone: {
 		isAlive: false
 	}, //A Definition for a clone, use an array of objects of this type to implement clones
-
+	teleport : {
+		teleporting: false,
+		teleport: function(player) {
+			var p1 = player.dubba.position;
+			var p2 = player.clone.dubba.position;
+			var temp = new T.Vector3(p1.x, p1.y, p1.z);
+			p1.set(p2.x, p2.y, p2.z);
+			p2.set(temp.x, temp.y, temp.z);
+		},
+	},
 	init : function (camera) {
 		this.camera = camera;
 		this.dubba.material = this.material;
@@ -103,44 +146,17 @@ var player = {
 		player.dubba.position.add(disp);
 
 		if(this.flag[4]){
-			if(this.cloneEffect.cloning) this.continueCloning();
-			else this.startCloning();
+			if(this.cloneEffect.cloning) this.cloneEffect.continueCloning(this);
+			else this.cloneEffect.startCloning(this);
 		}
-		else this.continueCloning();
-	},
-	startCloning: function() {
-		this.clone.dubba.add(this.cloneEffect.mesh);
-		this.cloneEffect.cloning = true;
-		this.cloneEffect.cloneStartingTime = new Date(); 
-		this.createClone();
-	},
-	createClone: function() {
-		this.clone.dubba.translateX( this.dubba.position.x - this.clone.dubba.position.x );
-		this.clone.dubba.translateY( this.dubba.position.y - this.clone.dubba.position.y );
-		this.clone.dubba.translateZ( this.dubba.position.z - this.clone.dubba.position.z );
-		if(!this.clone.isAlive) {
-			this.clone.isAlive = true;
-			scene.add(this.clone.dubba);
-		}
-	},
-	continueCloning: function() {
-		//Assumes Key state is already checked
-		var c = this.cloneEffect;
-		if(c.cloning){
-			var time = new Date();
-			var delT = (time.getSeconds() - c.cloneStartingTime.getSeconds()) 
-				+ (time.getMilliseconds() - c.cloneStartingTime.getMilliseconds())/1000;
-			if(delT > c.cloneTime){
-				//Cloning Completed, Place a form there
-				c.cloning = false;
-				this.clone.dubba.remove(c.mesh);
-			}
-			else{
-				var r = (delT / c.cloneTime);
-				c.mesh.scale.x = c.mesh.scale.y = c.mesh.scale.z = r;
-				c.mesh.material.opacity = 1 - r;
+		else this.cloneEffect.continueCloning(this);
+		if(this.flag[5]) {
+			if(!this.teleport.teleporting) {
+				this.teleport.teleport(this);
+				this.teleport.teleporting = true;
 			}
 		}
+		else this.teleport.teleporting = false;
 	},
 	keyHandling: function(event, val) {
 		player.keyIndexMap.filter((item) => item[0] === event.key )
