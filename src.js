@@ -33,9 +33,19 @@ var printInfo = false; //Debug only
 var player = {
 	material : new T.MeshPhongMaterial( { color: 0x00ff00 } ),
 	dubba : new T.Mesh( new T.BoxGeometry(1, 2, 1), undefined ),
-	flag: Array(4).fill(false), 
-	keyIndexMap: [['a', 0], ['s', 1], ['d', 2], ['w', 3]],
+	cloneEffect: {
+		mesh: new T.Mesh( new THREE.SphereGeometry( 5, 32, 32 ), 
+			new THREE.MeshBasicMaterial({color: 0x0000ff, transparent: true, opacity: 0.5})),
+		cloning: false, 
+		cloneTime: 1, //Seconds
+		cloneStartingTime: undefined,
+	},
+	flag: Array(5).fill(false), 
+	keyIndexMap: [['a', 0], ['s', 1], ['d', 2], ['w', 3], ['e', 4]],
 	speed: 0.05, camera: undefined,
+	clone: {
+		isAlive: false
+	}, //A Definition for a clone, use an array of objects of this type to implement clones
 
 	init : function (camera) {
 		this.camera = camera;
@@ -45,6 +55,8 @@ var player = {
 		this.addToScene();
 		this.dubba.add(this.camera);
 		this.camera.position.set(0, 2, 5);
+		//This is the list of properties that will be copied to the clone
+		this.clone.dubba = this.dubba.clone();
 	},
 	addToScene: function () {
 		scene.add(this.dubba);
@@ -62,6 +74,46 @@ var player = {
 
 		disp.normalize().multiplyScalar(dT * this.speed);
 		player.dubba.position.add(disp);
+
+		if(this.flag[4]){
+			if(this.cloneEffect.cloning) this.continueCloning();
+			else this.startCloning();
+		}
+		else this.continueCloning();
+	},
+	startCloning: function() {
+		this.clone.dubba.add(this.cloneEffect.mesh);
+		this.cloneEffect.cloning = true;
+		this.cloneEffect.cloneStartingTime = new Date(); 
+		this.createClone();
+	},
+	createClone: function() {
+		this.clone.dubba.translateX( this.dubba.position.x - this.clone.dubba.position.x );
+		this.clone.dubba.translateY( this.dubba.position.y - this.clone.dubba.position.y );
+		this.clone.dubba.translateZ( this.dubba.position.z - this.clone.dubba.position.z );
+		if(!this.clone.isAlive) {
+			this.clone.isAlive = true;
+			scene.add(this.clone.dubba);
+		}
+	},
+	continueCloning: function() {
+		//Assumes Key state is already checked
+		var c = this.cloneEffect;
+		if(c.cloning){
+			var time = new Date();
+			var delT = (time.getSeconds() - c.cloneStartingTime.getSeconds()) 
+				+ (time.getMilliseconds() - c.cloneStartingTime.getMilliseconds())/1000;
+			if(delT > c.cloneTime){
+				//Cloning Completed, Place a form there
+				c.cloning = false;
+				this.clone.dubba.remove(c.mesh);
+			}
+			else{
+				var r = (delT / c.cloneTime);
+				c.mesh.scale.x = c.mesh.scale.y = c.mesh.scale.z = r;
+				c.mesh.material.opacity = 1 - r;
+			}
+		}
 	},
 	keyHandling: function(event, val) {
 		player.keyIndexMap.filter((item) => item[0] === event.key )
