@@ -44,16 +44,14 @@ var player = {
 		document.addEventListener("keyup", this.onKeyUp, false);
 		this.addToScene();
 		this.dubba.add(this.camera);
-		this.camera.position.set(0, 1, 2);
+		this.camera.position.set(0, 2, 5);
 	},
 	addToScene: function () {
 		scene.add(this.dubba);
 	},
 	update: function (dT) {
-		var lookVector = new T.Vector3(
-			-camera.position.x, 0,
-			-camera.position.z).normalize();
-
+		this.camera.lookAt( player.dubba.position );
+		var lookVector = new T.Vector3(-this.camera.position.x, 0,-this.camera.position.z).normalize();
 		var left = new T.Vector3(lookVector.z, 0, - lookVector.x); //left = y cross lookVector
 		var disp = new T.Vector3();
 
@@ -81,16 +79,14 @@ room.init();
 player.init(camera);
 var controls = new THREE.OrbitControls( camera, document );
 
-camera.position.set(0, 2, 5);
-
 var animate = function () {
 	requestAnimationFrame( animate );
 
 	controls.update();
-	camera.lookAt( player.dubba.position );
-	renderer.render( scene, camera );
+	
 	var dT = calcFPS();
 	player.update(dT);
+	renderer.render( scene, camera );
 };
 
 var calcFPS = function () {
@@ -98,9 +94,9 @@ var calcFPS = function () {
 	var time = new Date();
 	var dT = time.getMilliseconds() - lasFrameTime.getMilliseconds();
 	if(dT < 0){
+		dT += 1000;
 		fps = frames / (1 + 0.001 * time.getMilliseconds());
 		frames = 0;
-		dT += 1000;
 		// console.log(fps);s
 	}
 	lasFrameTime = time;
