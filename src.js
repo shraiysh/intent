@@ -35,7 +35,7 @@ var room = {
 				TObject.position.set(
 					( this.floor.width + blockWidth ) * ( -1 / 2 ) + row * blockWidth,
 					this.floor.yPosition,
-					( this.floor.length + blockLength )*( -1 / 2 ) + col * blockLength 
+					( this.floor.length + blockLength ) * ( -1 / 2 ) + col * blockLength 
 				);
 				this.floor.mesh[row][col] = TObject;
 			}
