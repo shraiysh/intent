@@ -10,21 +10,44 @@ document.body.appendChild( renderer.domElement );
 
 var room = {
 	material : new T.MeshPhongMaterial(),
-	floor : new T.Mesh( new T.BoxGeometry( 100, 1, 100 ), undefined ),
+	floor : {
+		width : 100, length : 100, thickness : 1,
+		rows: 10, cols: 10, yPosition: -10,
+		mesh: [],
+	},
 	light: new T.PointLight(0xffffff, 0.75, 10000, 2),
 	ambLight: new T.AmbientLight(0xffffff),
 	axes: new T.AxesHelper(50),
 
 	init : function () {
-		this.floor.material = this.material;
-		this.floor.position.set(0, -10, 0);
+		var blockWidth = this.floor.width / this.floor.rows, 
+			blockLength = this.floor.length / this.floor.cols, 
+			blockThickness = this.floor.thickness;
+		for( var row = 0; row < this.floor.rows; row++ ) {
+			this.floor.mesh[row] = [];
+			for( var col = 0; col < this.floor.cols; col++ ) {
+				var TObject = new T.Mesh(new T.BoxGeometry(blockWidth, blockThickness, blockLength), undefined);
+				TObject.material = this.material;
+				TObject.position.set(
+					( this.floor.width + blockWidth ) * ( -1 / 2 ) + row * blockWidth,
+					this.floor.yPosition,
+					( this.floor.length + blockLength )*( -1 / 2 ) + col * blockLength 
+				);
+				this.floor.mesh[row][col] = TObject;
+			}
+		}
 		this.light.position.set(0, 15, 0);
 		this.addToScene();
 	},
 	addToScene: function (){
 		scene.add(this.light);
+		this.floor.mesh.forEach( row => {
+			row.forEach( block => {
+				scene.add(block);
+			})
+		})
 		this.light.add(this.axes);
-		scene.add(this.floor);
+		scene.background = new T.Color(0x77aaff);
 	}
 }
 
