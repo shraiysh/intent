@@ -11,33 +11,26 @@ document.body.appendChild( renderer.domElement );
 var room = {
 	material : new T.MeshPhongMaterial(),
 	floor : {
-		width : 100, length : 100, thickness : 1, yPosition: -10,
-		rows: 10, cols: 10, blockMargin: 0.03,
-		mesh: [],
+		width : 100, length : 100, thickness : 1, yPos: -10,
+		rows: 10, cols: 10, bMargin: 0.03,
+		mesh: Array(this.rows),
 	},
 	light: new T.PointLight(0xffffff, 0.75, 10000, 2),
 	ambLight: new T.AmbientLight(0xffffff),
 	axes: new T.AxesHelper(50),
 
 	init : function () {
-		var blockWidth = this.floor.width / this.floor.rows, 
-			blockLength = this.floor.length / this.floor.cols, 
-			blockThickness = this.floor.thickness;
-		for( var row = 0; row < this.floor.rows; row++ ) {
-			this.floor.mesh[row] = [];
-			for( var col = 0; col < this.floor.cols; col++ ) {
-				var TObject = new T.Mesh(new T.BoxGeometry(
-					blockWidth - this.floor.blockMargin,
-					blockThickness,
-					blockLength - this.floor.blockMargin
-				), undefined);
-				TObject.material = this.material;
-				TObject.position.set(
-					( this.floor.width + blockWidth ) * ( -1 / 2 ) + row * blockWidth,
-					this.floor.yPosition,
-					( this.floor.length + blockLength ) * ( -1 / 2 ) + col * blockLength 
+		var t = this.floor;
+		var bWid = t.width / t.rows, bLen = t.length / t.cols;
+		for( var row = 0; row < t.rows; row++ ) {
+			t.mesh[row] = [];
+			for( var col = 0; col < t.cols; col++ ) {
+				t.mesh[row][col] = new T.Mesh(new T.BoxGeometry(
+					bWid - t.bMargin, t.thickness, bLen - t.bMargin
+				), this.material);
+				t.mesh[row][col].position.set(
+					-t.width/2 + (row - 0.5) * bWid, t.yPos, -t.length/2 + (col - 0.5) * bLen 
 				);
-				this.floor.mesh[row][col] = TObject;
 			}
 		}
 		this.light.position.set(0, 15, 0);
@@ -192,7 +185,7 @@ var calcFPS = function () {
 		dT += 1000;
 		fps = frames / (1 + 0.001 * time.getMilliseconds());
 		frames = 0;
-		// console.log(fps);s
+		// console.log(fps);
 	}
 	lasFrameTime = time;
 	return dT;
