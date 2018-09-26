@@ -63,15 +63,12 @@ var player = {
 		cloneTime: 1, //Seconds
 		cloneStartingTime: undefined,
 		startCloning: function(player) {
-			console.log("startCloning : start");
 			player.clone.dubba.add(player.cloneEffect.mesh);
 			player.cloneEffect.isCloning = true;
 			player.cloneEffect.cloneStartingTime = new Date(); 
-			console.log("startCloning : ends")
 			this.createClone(player);
 		},
 		createClone: function(player) {
-			console.log("createClone : starts");
 			player.clone.dubba.translateX( player.dubba.position.x - player.clone.dubba.position.x );
 			player.clone.dubba.translateY( player.dubba.position.y - player.clone.dubba.position.y );
 			player.clone.dubba.translateZ( player.dubba.position.z - player.clone.dubba.position.z );
@@ -79,13 +76,11 @@ var player = {
 				player.clone.isAlive = true;
 				scene.add(player.clone.dubba);
 			}
-			console.log("createClone : ends");
 		},
 		continueCloning: function(player) {
 			//Assumes Key state is already checked
 			var c = player.cloneEffect;
 			if(c.isCloning){
-				console.log("continueCloning");
 				var time = new Date();
 				var delT = (time.getSeconds() - c.cloneStartingTime.getSeconds()) 
 					+ (time.getMilliseconds() - c.cloneStartingTime.getMilliseconds())/1000;
