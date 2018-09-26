@@ -51,21 +51,27 @@ var room = {
 var printInfo = false; //Debug only
 
 var player = {
-	material : new T.MeshPhongMaterial( { color: 0x00ff00 } ),
+	material : new T.MeshPhongMaterial( { color: 0x00ff00 , transparent: true} ),
 	dubba : new T.Mesh( new T.BoxGeometry(1, 2, 1), undefined ),
+	motionEffect : {
+		isMoving : false,
+	},
 	cloneEffect: {
 		mesh: new T.Mesh( new THREE.SphereGeometry( 5, 32, 32 ), 
 			new THREE.MeshBasicMaterial({color: 0x0000ff, transparent: true, opacity: 0.5})),
-		cloning: false, 
+		isCloning: false, 
 		cloneTime: 1, //Seconds
 		cloneStartingTime: undefined,
 		startCloning: function(player) {
+			console.log("startCloning : start");
 			player.clone.dubba.add(player.cloneEffect.mesh);
-			player.cloneEffect.cloning = true;
+			player.cloneEffect.isCloning = true;
 			player.cloneEffect.cloneStartingTime = new Date(); 
+			console.log("startCloning : ends")
 			this.createClone(player);
 		},
 		createClone: function(player) {
+			console.log("createClone : starts");
 			player.clone.dubba.translateX( player.dubba.position.x - player.clone.dubba.position.x );
 			player.clone.dubba.translateY( player.dubba.position.y - player.clone.dubba.position.y );
 			player.clone.dubba.translateZ( player.dubba.position.z - player.clone.dubba.position.z );
@@ -73,17 +79,18 @@ var player = {
 				player.clone.isAlive = true;
 				scene.add(player.clone.dubba);
 			}
+			console.log("createClone : ends");
 		},
 		continueCloning: function(player) {
 			//Assumes Key state is already checked
 			var c = player.cloneEffect;
-			if(c.cloning){
+			if(c.isCloning){
+				console.log("continueCloning");
 				var time = new Date();
 				var delT = (time.getSeconds() - c.cloneStartingTime.getSeconds()) 
 					+ (time.getMilliseconds() - c.cloneStartingTime.getMilliseconds())/1000;
 				if(delT > c.cloneTime){
-					//Cloning Completed, Place a form there
-					c.cloning = false;
+					c.isCloning = false;
 					player.clone.dubba.remove(c.mesh);
 				}
 				else{
@@ -94,9 +101,9 @@ var player = {
 			}
 		},
 	},
-	flag: Array(5).fill(false), 
-	keyIndexMap: [['a', 0], ['s', 1], ['d', 2], ['w', 3], ['e', 4], ['q', 5]],
-	speed: 0.05, camera: undefined,
+	flag: Array(6).fill(false), 
+	keyIndexMap: [['a', 0], ['s', 1], ['d', 2], ['w', 3], ['e', 4], ['z', 5]],
+	speed: 0.02, camera: undefined,
 	clone: {
 		isAlive: false
 	}, //A Definition for a clone, use an array of objects of this type to implement clones
@@ -131,7 +138,7 @@ var player = {
 		var lookVector = new T.Vector3(-this.camera.position.x, 0,-this.camera.position.z).normalize();
 		var left = new T.Vector3(lookVector.z, 0, - lookVector.x); //left = y cross lookVector
 		var disp = new T.Vector3();
-
+		this.motionEffect.isMoving = (this.flag[0] + this.flag[1] + this.flag[2] + this.flag[3]) > 0;
 		if(this.flag[0]) disp.add(left);
 		if(this.flag[3]) disp.add(lookVector);
 		if(this.flag[2]) disp.add(left.negate());
@@ -140,11 +147,14 @@ var player = {
 		disp.normalize().multiplyScalar(dT * this.speed);
 		player.dubba.position.add(disp);
 
+		if(this.motionEffect.isMoving) this.dubba.material.opacity = 0.7;
+		else this.dubba.material.opacity = 0.2;
 		if(this.flag[4]){
-			if(this.cloneEffect.cloning) this.cloneEffect.continueCloning(this);
+			if(this.cloneEffect.isCloning) this.cloneEffect.continueCloning(this);
 			else this.cloneEffect.startCloning(this);
 		}
 		else this.cloneEffect.continueCloning(this);
+		
 		if(this.flag[5]) {
 			if(!this.teleport.teleporting) {
 				this.teleport.teleport(this);
