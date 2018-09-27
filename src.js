@@ -25,12 +25,8 @@ var room = {
 		for( var row = 0; row < t.rows; row++ ) {
 			t.mesh[row] = [];
 			for( var col = 0; col < t.cols; col++ ) {
-				t.mesh[row][col] = new T.Mesh(new T.BoxGeometry(
-					bWid - t.bMargin, t.thickness, bLen - t.bMargin
-				), this.material);
-				t.mesh[row][col].position.set(
-					-t.width/2 + (row - 0.5) * bWid, t.yPos, -t.length/2 + (col - 0.5) * bLen 
-				);
+				t.mesh[row][col] = new T.Mesh(new T.BoxGeometry( bWid - t.bMargin, t.thickness, bLen - t.bMargin ), this.material);
+				t.mesh[row][col].position.set( -t.width/2 + (row - 0.5) * bWid, t.yPos, -t.length/2 + (col - 0.5) * bLen );
 			}
 		}
 		this.light.position.set(0, 15, 0);
@@ -55,6 +51,49 @@ var player = {
 	dubba : new T.Mesh( new T.BoxGeometry(1, 2, 1), undefined ),
 	motionEffect : {
 		isMoving : false,
+		numberOfImages : 1,
+		images : Array(this.numberOfImages),
+		motionStartingTime : undefined,
+		moveOpacity : 0.3,
+		stopOpacity : 0.1,
+		timeDiffBetween2ImagePositions : 0.02,
+		startMoving : function( player ) {
+			if( !player.motionEffect.isMoving ) {
+				player.motionEffect.motionStartingTime = new Date();
+				player.motionEffect.isMoving = true;
+			}
+		},
+		moving : function( player ) {
+			if( !player.motionEffect.isMoving ) startMoving(player);
+			else {
+				player.dubba.material.opacity = this.moveOpacity;
+				player.motionEffect.images.forEach( item => {
+					item.material.opacity = this.moveOpacity;
+				})
+				var time = new Date();
+				var delT = (time.getSeconds() - player.motionEffect.motionStartingTime.getSeconds()) 
+						+ (time.getMilliseconds() - player.motionEffect.motionStartingTime.getMilliseconds())/1000
+				if(delT > this.timeDiffBetween2ImagePositions) {
+					player.motionEffect.images[0].position.set( player.dubba.position.x, player.dubba.position.y, player.dubba.position.z );
+					for( var i = 1; i < player.motionEffect.numberOfImages; i++ ) {
+						player.motionEffect.images[i].position.set( 
+							player.motionEffect.images[i-1].position.x,
+							player.motionEffect.images[i-1].position.y,
+							player.motionEffect.images[i-1].position.z );
+					}
+					player.motionEffect.motionStartingTime = new Date();
+				}
+			}
+		},
+		stopMoving : function( player ) {
+			player.motionEffect.isMoving = false;
+			player.motionEffect.motionStartingTime = undefined;
+			player.dubba.material.opacity = this.stopOpacity;
+			player.motionEffect.images.forEach( item => {
+				item.position.set ( player.dubba.position.x, player.dubba.position.y, player.dubba.position.z);
+				item.material.opacity = this.stopOpacity;
+			})
+		}
 	},
 	cloneEffect: {
 		mesh: new T.Mesh( new THREE.SphereGeometry( 5, 32, 32 ), 
@@ -119,21 +158,36 @@ var player = {
 		this.dubba.material = this.material;
 		document.addEventListener("keydown", this.onKeyDown, false);
 		document.addEventListener("keyup", this.onKeyUp, false);
-		this.addToScene();
 		this.dubba.add(this.camera);
 		this.camera.position.set(0, 2, 5);
+
+		// Init images
+		for ( var i = 0; i < this.motionEffect.numberOfImages; i++ ) {
+			this.motionEffect.images[i] = this.dubba.clone();
+			this.motionEffect.images[i].transparent = true;
+			this.motionEffect.images[i].position.set( 0, 0, 0 );
+		}
+
+		this.addToScene();
+
 		//This is the list of properties that will be copied to the clone
 		this.clone.dubba = this.dubba.clone();
 	},
 	addToScene: function () {
-		scene.add(this.dubba);
+		scene.add( this.dubba );
+		this.motionEffect.images.forEach(image => {
+			scene.add(image);
+		})
 	},
 	update: function (dT) {
 		this.camera.lookAt( player.dubba.position );
 		var lookVector = new T.Vector3(-this.camera.position.x, 0,-this.camera.position.z).normalize();
 		var left = new T.Vector3(lookVector.z, 0, - lookVector.x); //left = y cross lookVector
 		var disp = new T.Vector3();
-		this.motionEffect.isMoving = (this.flag[0] + this.flag[1] + this.flag[2] + this.flag[3]) > 0;
+
+		if ( this.flag[0] | this.flag[1] | this.flag[2] | this.flag[3] ) this.motionEffect.startMoving( this );
+		else this.motionEffect.stopMoving( this );
+		
 		if(this.flag[0]) disp.add(left);
 		if(this.flag[3]) disp.add(lookVector);
 		if(this.flag[2]) disp.add(left.negate());
@@ -142,8 +196,8 @@ var player = {
 		disp.normalize().multiplyScalar(dT * this.speed);
 		player.dubba.position.add(disp);
 
-		if(this.motionEffect.isMoving) this.dubba.material.opacity = 0.7;
-		else this.dubba.material.opacity = 0.2;
+		if( this.motionEffect.isMoving ) this.motionEffect.moving( player );
+
 		if(this.flag[4]){
 			if(this.cloneEffect.isCloning) this.cloneEffect.continueCloning(this);
 			else this.cloneEffect.startCloning(this);
