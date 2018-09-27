@@ -48,15 +48,16 @@ var printInfo = false; //Debug only
 
 var player = {
 	material : new T.MeshPhongMaterial( { color: 0x00ff00 , transparent: true} ),
+	imageMaterial : new T.MeshPhongMaterial( { color: 0x00ff00 , transparent: true} ),
 	dubba : new T.Mesh( new T.BoxGeometry(1, 2, 1), undefined ),
 	motionEffect : {
 		isMoving : false,
-		numberOfImages : 1,
-		images : Array(this.numberOfImages),
+		image : undefined,
 		motionStartingTime : undefined,
-		moveOpacity : 0.3,
+		dubbaMoveOpacity : 0.8,
+		imageMoveOpacity : 0.4,
 		stopOpacity : 0.1,
-		timeDiffBetween2ImagePositions : 0.02,
+		timeDiffBetween2ImagePositions : 0.05,
 		startMoving : function( player ) {
 			if( !player.motionEffect.isMoving ) {
 				player.motionEffect.motionStartingTime = new Date();
@@ -66,21 +67,13 @@ var player = {
 		moving : function( player ) {
 			if( !player.motionEffect.isMoving ) startMoving(player);
 			else {
-				player.dubba.material.opacity = this.moveOpacity;
-				player.motionEffect.images.forEach( item => {
-					item.material.opacity = this.moveOpacity;
-				})
+				player.dubba.material.opacity = this.dubbaMoveOpacity;
+				player.motionEffect.image.material.opacity = this.imageMoveOpacity;
 				var time = new Date();
 				var delT = (time.getSeconds() - player.motionEffect.motionStartingTime.getSeconds()) 
 						+ (time.getMilliseconds() - player.motionEffect.motionStartingTime.getMilliseconds())/1000
 				if(delT > this.timeDiffBetween2ImagePositions) {
-					player.motionEffect.images[0].position.set( player.dubba.position.x, player.dubba.position.y, player.dubba.position.z );
-					for( var i = 1; i < player.motionEffect.numberOfImages; i++ ) {
-						player.motionEffect.images[i].position.set( 
-							player.motionEffect.images[i-1].position.x,
-							player.motionEffect.images[i-1].position.y,
-							player.motionEffect.images[i-1].position.z );
-					}
+					player.motionEffect.image.position.set( player.dubba.position.x, player.dubba.position.y, player.dubba.position.z );
 					player.motionEffect.motionStartingTime = new Date();
 				}
 			}
@@ -89,10 +82,8 @@ var player = {
 			player.motionEffect.isMoving = false;
 			player.motionEffect.motionStartingTime = undefined;
 			player.dubba.material.opacity = this.stopOpacity;
-			player.motionEffect.images.forEach( item => {
-				item.position.set ( player.dubba.position.x, player.dubba.position.y, player.dubba.position.z);
-				item.material.opacity = this.stopOpacity;
-			})
+			player.motionEffect.image.material.opacity = this.stopOpacity;
+			player.motionEffect.image.position.set ( player.dubba.position.x, player.dubba.position.y, player.dubba.position.z );
 		}
 	},
 	cloneEffect: {
@@ -161,12 +152,9 @@ var player = {
 		this.dubba.add(this.camera);
 		this.camera.position.set(0, 2, 5);
 
-		// Init images
-		for ( var i = 0; i < this.motionEffect.numberOfImages; i++ ) {
-			this.motionEffect.images[i] = this.dubba.clone();
-			this.motionEffect.images[i].transparent = true;
-			this.motionEffect.images[i].position.set( 0, 0, 0 );
-		}
+		this.motionEffect.image = this.dubba.clone();
+		this.motionEffect.image.material = this.imageMaterial;
+		this.motionEffect.image.position.set( 0, 0, 0 );
 
 		this.addToScene();
 
@@ -175,9 +163,7 @@ var player = {
 	},
 	addToScene: function () {
 		scene.add( this.dubba );
-		this.motionEffect.images.forEach(image => {
-			scene.add(image);
-		})
+		scene.add( this.motionEffect.image );
 	},
 	update: function (dT) {
 		this.camera.lookAt( player.dubba.position );
