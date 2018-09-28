@@ -50,42 +50,42 @@ var player = {
 	material : new T.MeshPhongMaterial( { color: 0x00ff00 , transparent: true} ),
 	imageMaterial : new T.MeshPhongMaterial( { color: 0x00ff00 , transparent: true} ),
 	dubba : new T.Mesh( new T.BoxGeometry(1, 2, 1), undefined ),
-	motionEffect : {
-		isMoving : false,
-		image : undefined,
-		motionStartingTime : undefined,
-		dubbaMoveOpacity : 0.8,
-		imageMoveOpacity : 0.4,
-		stopOpacity : 0.1,
-		timeDiffBetween2ImagePositions : 0.05,
-		startMoving : function( player ) {
-			if( !player.motionEffect.isMoving ) {
-				player.motionEffect.motionStartingTime = new Date();
-				player.motionEffect.isMoving = true;
-			}
-		},
-		moving : function( player ) {
-			if( !player.motionEffect.isMoving ) startMoving(player);
-			else {
-				player.dubba.material.opacity = this.dubbaMoveOpacity;
-				player.motionEffect.image.material.opacity = this.imageMoveOpacity;
-				var time = new Date();
-				var delT = (time.getSeconds() - player.motionEffect.motionStartingTime.getSeconds()) 
-						+ (time.getMilliseconds() - player.motionEffect.motionStartingTime.getMilliseconds())/1000
-				if(delT > this.timeDiffBetween2ImagePositions) {
-					player.motionEffect.image.position.set( player.dubba.position.x, player.dubba.position.y, player.dubba.position.z );
-					player.motionEffect.motionStartingTime = new Date();
-				}
-			}
-		},
-		stopMoving : function( player ) {
-			player.motionEffect.isMoving = false;
-			player.motionEffect.motionStartingTime = undefined;
-			player.dubba.material.opacity = this.stopOpacity;
-			player.motionEffect.image.material.opacity = this.stopOpacity;
-			player.motionEffect.image.position.set ( player.dubba.position.x, player.dubba.position.y, player.dubba.position.z );
-		}
-	},
+	// motionEffect : {
+	// 	isMoving : false,
+	// 	image : undefined,
+	// 	motionStartingTime : undefined,
+	// 	dubbaMoveOpacity : 0.6,
+	// 	imageMoveOpacity : 0.4,
+	// 	stopOpacity : 0.1,
+	// 	timeDiffBetween2ImagePositions : 0.02,
+	// 	startMoving : function( player ) {
+	// 		if( !player.motionEffect.isMoving ) {
+	// 			player.motionEffect.motionStartingTime = new Date();
+	// 			player.motionEffect.isMoving = true;
+	// 		}
+	// 	},
+	// 	moving : function( player ) {
+	// 		if( !player.motionEffect.isMoving ) startMoving(player);
+	// 		else {
+	// 			player.dubba.material.opacity = this.dubbaMoveOpacity;
+	// 			player.motionEffect.image.material.opacity = this.imageMoveOpacity;
+	// 			var time = new Date();
+	// 			var delT = (time.getSeconds() - player.motionEffect.motionStartingTime.getSeconds()) 
+	// 					+ (time.getMilliseconds() - player.motionEffect.motionStartingTime.getMilliseconds())/1000
+	// 			if(delT > this.timeDiffBetween2ImagePositions) {
+	// 				player.motionEffect.image.position.set( player.dubba.position.x, player.dubba.position.y, player.dubba.position.z );
+	// 				player.motionEffect.motionStartingTime = new Date();
+	// 			}
+	// 		}
+	// 	},
+	// 	stopMoving : function( player ) {
+	// 		player.motionEffect.isMoving = false;
+	// 		player.motionEffect.motionStartingTime = undefined;
+	// 		player.dubba.material.opacity = this.stopOpacity;
+	// 		player.motionEffect.image.material.opacity = this.stopOpacity;
+	// 		player.motionEffect.image.position.set ( player.dubba.position.x, player.dubba.position.y, player.dubba.position.z );
+	// 	}
+	// },
 	cloneEffect: {
 		mesh: new T.Mesh( new THREE.SphereGeometry( 5, 32, 32 ), 
 			new THREE.MeshBasicMaterial({color: 0x0000ff, transparent: true, opacity: 0.5})),
@@ -152,9 +152,9 @@ var player = {
 		this.dubba.add(this.camera);
 		this.camera.position.set(0, 2, 5);
 
-		this.motionEffect.image = this.dubba.clone();
-		this.motionEffect.image.material = this.imageMaterial;
-		this.motionEffect.image.position.set( 0, 0, 0 );
+		// this.motionEffect.image = this.dubba.clone();
+		// this.motionEffect.image.material = this.imageMaterial;
+		// this.motionEffect.image.position.set( 0, 0, 0 );
 
 		this.addToScene();
 
@@ -163,7 +163,7 @@ var player = {
 	},
 	addToScene: function () {
 		scene.add( this.dubba );
-		scene.add( this.motionEffect.image );
+		// scene.add( this.motionEffect.image );
 	},
 	update: function (dT) {
 		this.camera.lookAt( player.dubba.position );
@@ -171,8 +171,8 @@ var player = {
 		var left = new T.Vector3(lookVector.z, 0, - lookVector.x); //left = y cross lookVector
 		var disp = new T.Vector3();
 
-		if ( this.flag[0] | this.flag[1] | this.flag[2] | this.flag[3] ) this.motionEffect.startMoving( this );
-		else this.motionEffect.stopMoving( this );
+		// if ( this.flag[0] | this.flag[1] | this.flag[2] | this.flag[3] ) this.motionEffect.startMoving( this );
+		// else this.motionEffect.stopMoving( this );
 		
 		if(this.flag[0]) disp.add(left);
 		if(this.flag[3]) disp.add(lookVector);
@@ -182,7 +182,7 @@ var player = {
 		disp.normalize().multiplyScalar(dT * this.speed);
 		player.dubba.position.add(disp);
 
-		if( this.motionEffect.isMoving ) this.motionEffect.moving( player );
+		// if( this.motionEffect.isMoving ) this.motionEffect.moving( player );
 
 		if(this.flag[4]){
 			if(this.cloneEffect.isCloning) this.cloneEffect.continueCloning(this);
