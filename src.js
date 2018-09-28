@@ -75,7 +75,8 @@ var player = {
 				oParams.height - cParams.height > player.minSize.y &&
 				oParams.depth - cParams.depth > player.minSize.z 
 			) {
-				player.clone.dubba.add(player.cloneEffect.mesh);
+				player.clones[player.clones.length] = player.dubba.clone();
+				player.clones[player.clones.length-1].add(player.cloneEffect.mesh);
 				player.cloneEffect.cloning = true;
 				player.cloneEffect.cloneStartingTime = new Date(); 
 				this.createClone(player);
@@ -88,7 +89,6 @@ var player = {
 		createClone: function(player) {
 			var oParams = player.dubba.geometry.parameters; // Object parameters
 			var cParams = player.clone.dubba.geometry.parameters // Clone parameters
-			player.clones[player.clones.length] = player.dubba.clone();
 			player.clones[player.clones.length-1].geometry = new T.BoxGeometry(player.minSize.x, player.minSize.y, player.minSize.z );
 			player.clones[player.clones.length-1].position.set ( 
 				player.dubba.position.x,
@@ -109,13 +109,14 @@ var player = {
 			//Assumes Key state is already checked
 			var c = player.cloneEffect;
 			if(c.cloning){
+				console.log("Making the sphere");
 				var time = new Date();
 				var delT = (time.getSeconds() - c.cloneStartingTime.getSeconds()) 
 					+ (time.getMilliseconds() - c.cloneStartingTime.getMilliseconds())/1000;
 				if(delT > c.cloneTime){
 					//Cloning Completed, Place a form there
 					c.cloning = false;
-					player.clone.dubba.remove(c.mesh);
+					player.clones[player.clones.length-1].remove(c.mesh);
 				}
 				else{
 					var r = (delT / c.cloneTime);
@@ -129,9 +130,10 @@ var player = {
 	teleport : {
 		teleporting: false,
 		teleport: function(player) {
-			if(player.clone.isAlive) {
+			var index = Math.floor ( Math.random () * player.clones.length );
+			if(player.clones[index].isAlive) {
 				var p1 = player.dubba.position;
-				var p2 = player.clone.dubba.position;
+				var p2 = player.clones[index].position;
 				var temp = new T.Vector3(p1.x, p1.y, p1.z);
 				p1.set(p2.x, p2.y, p2.z);
 				p2.set(temp.x, temp.y, temp.z);
