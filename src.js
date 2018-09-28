@@ -1,15 +1,21 @@
 var T = THREE;
 var frames = 0, lasFrameTime = new Date(), fps;
 
-var scene = new T.Scene();
+Physijs.scripts.worker = 'js/physijs_worker.js';
+Physijs.scripts.ammo = 'ammo.js';
+
+var scene = new Physijs.Scene;
+scene.setGravity({x: 0, y: 0, z: 0});
+scene.background = new T.Color(0x77aaff);
 var camera = new T.PerspectiveCamera( 75, window.innerWidth/window.innerHeight, 0.1, 1000 );
 
+var controls = new T.OrbitControls( camera, document );
 var renderer = new T.WebGLRenderer();
 renderer.setSize( window.innerWidth, window.innerHeight );
 document.body.appendChild( renderer.domElement );
 
 var room = {
-	material : new T.MeshPhongMaterial(),
+	material : new T.MeshLambertMaterial(),
 	floor : {
 		width : 100, length : 100, thickness : 1, yPos: -10,
 		rows: 10, cols: 10, bMargin: 0.03,
@@ -25,7 +31,9 @@ var room = {
 		for( var row = 0; row < t.rows; row++ ) {
 			t.mesh[row] = [];
 			for( var col = 0; col < t.cols; col++ ) {
-				t.mesh[row][col] = new T.Mesh(new T.BoxGeometry( bWid - t.bMargin, t.thickness, bLen - t.bMargin ), this.material);
+				t.mesh[row][col] = new Physijs.BoxMesh(
+					new T.BoxGeometry( bWid - t.bMargin, t.thickness, bLen - t.bMargin ), 
+					this.material, 0.1);
 				t.mesh[row][col].position.set( -t.width/2 + (row - 0.5) * bWid, t.yPos, -t.length/2 + (col - 0.5) * bLen );
 			}
 		}
@@ -40,7 +48,6 @@ var room = {
 			})
 		})
 		this.light.add(this.axes);
-		scene.background = new T.Color(0x77aaff);
 	}
 }
 
@@ -49,43 +56,7 @@ var printInfo = false; //Debug only
 var player = {
 	material : new T.MeshPhongMaterial( { color: 0x00ff00 , transparent: true} ),
 	imageMaterial : new T.MeshPhongMaterial( { color: 0x00ff00 , transparent: true} ),
-	dubba : new T.Mesh( new T.BoxGeometry(1, 2, 1), undefined ),
-	// motionEffect : {
-	// 	isMoving : false,
-	// 	image : undefined,
-	// 	motionStartingTime : undefined,
-	// 	dubbaMoveOpacity : 0.6,
-	// 	imageMoveOpacity : 0.4,
-	// 	stopOpacity : 0.1,
-	// 	timeDiffBetween2ImagePositions : 0.02,
-	// 	startMoving : function( player ) {
-	// 		if( !player.motionEffect.isMoving ) {
-	// 			player.motionEffect.motionStartingTime = new Date();
-	// 			player.motionEffect.isMoving = true;
-	// 		}
-	// 	},
-	// 	moving : function( player ) {
-	// 		if( !player.motionEffect.isMoving ) startMoving(player);
-	// 		else {
-	// 			player.dubba.material.opacity = this.dubbaMoveOpacity;
-	// 			player.motionEffect.image.material.opacity = this.imageMoveOpacity;
-	// 			var time = new Date();
-	// 			var delT = (time.getSeconds() - player.motionEffect.motionStartingTime.getSeconds()) 
-	// 					+ (time.getMilliseconds() - player.motionEffect.motionStartingTime.getMilliseconds())/1000
-	// 			if(delT > this.timeDiffBetween2ImagePositions) {
-	// 				player.motionEffect.image.position.set( player.dubba.position.x, player.dubba.position.y, player.dubba.position.z );
-	// 				player.motionEffect.motionStartingTime = new Date();
-	// 			}
-	// 		}
-	// 	},
-	// 	stopMoving : function( player ) {
-	// 		player.motionEffect.isMoving = false;
-	// 		player.motionEffect.motionStartingTime = undefined;
-	// 		player.dubba.material.opacity = this.stopOpacity;
-	// 		player.motionEffect.image.material.opacity = this.stopOpacity;
-	// 		player.motionEffect.image.position.set ( player.dubba.position.x, player.dubba.position.y, player.dubba.position.z );
-	// 	}
-	// },
+	dubba : new Physijs.BoxMesh( new T.BoxGeometry(1, 2, 1), undefined, 10 ),
 	cloneEffect: {
 		mesh: new T.Mesh( new THREE.SphereGeometry( 5, 32, 32 ), 
 			new THREE.MeshBasicMaterial({color: 0x0000ff, transparent: true, opacity: 0.5})),
@@ -128,7 +99,7 @@ var player = {
 	},
 	flag: Array(6).fill(false), 
 	keyIndexMap: [['a', 0], ['s', 1], ['d', 2], ['w', 3], ['e', 4], ['z', 5]],
-	speed: 0.02, camera: undefined,
+	speed: 20, camera: undefined,
 	clone: {
 		isAlive: false
 	}, //A Definition for a clone, use an array of objects of this type to implement clones
@@ -149,13 +120,10 @@ var player = {
 		this.dubba.material = this.material;
 		document.addEventListener("keydown", this.onKeyDown, false);
 		document.addEventListener("keyup", this.onKeyUp, false);
+		document.addEventListener("mousedown", this.onMouseDown, false);
 		this.dubba.add(this.camera);
+		this.dubba.inertia = Infinity; // Disables rotation on all collisions
 		this.camera.position.set(0, 2, 5);
-
-		// this.motionEffect.image = this.dubba.clone();
-		// this.motionEffect.image.material = this.imageMaterial;
-		// this.motionEffect.image.position.set( 0, 0, 0 );
-
 		this.addToScene();
 
 		//This is the list of properties that will be copied to the clone
@@ -166,23 +134,24 @@ var player = {
 		// scene.add( this.motionEffect.image );
 	},
 	update: function (dT) {
-		this.camera.lookAt( player.dubba.position );
-		var lookVector = new T.Vector3(-this.camera.position.x, 0,-this.camera.position.z).normalize();
-		var left = new T.Vector3(lookVector.z, 0, - lookVector.x); //left = y cross lookVector
-		var disp = new T.Vector3();
+		// this.dubba.setAngularVelocity ( new THREE.Vector3( 0, 0, 0 ) );
+		this.camera.lookAt(new T.Vector3(player.dubba.position.x, 
+									player.dubba.position.y + 2,
+									player.dubba.position.z));
+		var moved = this.flag[0] | this.flag[1] | this.flag[2] | this.flag[3];
 
-		// if ( this.flag[0] | this.flag[1] | this.flag[2] | this.flag[3] ) this.motionEffect.startMoving( this );
-		// else this.motionEffect.stopMoving( this );
-		
-		if(this.flag[0]) disp.add(left);
-		if(this.flag[3]) disp.add(lookVector);
-		if(this.flag[2]) disp.add(left.negate());
-		if(this.flag[1]) disp.add(lookVector.negate());
-
-		disp.normalize().multiplyScalar(dT * this.speed);
-		player.dubba.position.add(disp);
-
-		// if( this.motionEffect.isMoving ) this.motionEffect.moving( player );
+    	if(moved) {
+			var lookVector = new T.Vector3(-this.camera.position.x, 0,-this.camera.position.z).normalize();
+			var left = new T.Vector3(lookVector.z, 0, - lookVector.x); //left = y cross lookVector
+			var disp = new T.Vector3();
+	    	if(this.flag[0]) disp.add(left);
+			if(this.flag[3]) disp.add(lookVector);
+			if(this.flag[2]) disp.add(left.negate());
+			if(this.flag[1]) disp.add(lookVector.negate());
+			disp.normalize().multiplyScalar(this.speed);
+    		player.dubba.setLinearVelocity(disp);
+    	}
+    	else this.dubba.setLinearVelocity(new T.Vector3(0, 0, 0));
 
 		if(this.flag[4]){
 			if(this.cloneEffect.isCloning) this.cloneEffect.continueCloning(this);
@@ -207,12 +176,44 @@ var player = {
 	},
 	onKeyUp : function (event) {
 		player.keyHandling(event, false);
+	},
+	onMouseDown: function(event) {
+		if(event.button === 0){ //First Click
+			var dir = new T.Vector3();
+			var pos = new T.Vector3();
+			player.dubba.getWorldPosition(pos);
+			camera.getWorldDirection( dir );
+			bulletMgr.createBullet(dir, pos);
+		}
 	}
 }
 
-room.init();
-player.init(camera);
-var controls = new THREE.OrbitControls( camera, document );
+var bulletMgr = {
+	bullets: [],
+	newBullet: function() {
+		return {
+			mesh: new Physijs.SphereMesh( 
+				new T.SphereGeometry( 0.1, 3, 3 ), 
+				new T.MeshBasicMaterial({ color: 0xff0000 }), 1),
+			speed: 15
+		};
+	},
+	createBullet: function(direction, location) {
+		var temp = this.newBullet();
+		direction.multiplyScalar(2);
+		location.add(direction);
+		temp.mesh.position.set(location.x, location.y, location.z);
+		direction.multiplyScalar(temp.speed);
+		this.bullets.push(temp);
+		scene.add(temp.mesh);
+		temp.mesh.setLinearVelocity(direction);
+	},
+	update: function (){
+		//If a bullet is too far away, remove it from the scene
+		//Handle bullet collision to destroy tiles and damage players
+		//Maybe use event handlers for this
+	}
+};
 
 var animate = function () {
 	requestAnimationFrame( animate );
@@ -221,6 +222,7 @@ var animate = function () {
 	
 	var dT = calcFPS();
 	player.update(dT);
+	scene.simulate();
 	renderer.render( scene, camera );
 };
 
@@ -238,4 +240,6 @@ var calcFPS = function () {
 	return dT;
 }
 
+room.init();
+player.init(camera);
 animate();
