@@ -57,10 +57,8 @@ var player = {
 	keyIndexMap: [['a', 0], ['s', 1], ['d', 2], ['w', 3], ['e', 4], ['q', 5]],
 	speed: 0.05, camera: undefined,
 	maxSize : new T.Vector3 ( 6, 12,  6), minSize : new T.Vector3 ( 1, 2, 1 ),
-	clones : Array(0),
-	clone: {
-		isAlive: false
-	}, //A Definition for a clone, use an array of objects of this type to implement clones
+	clones : Array(0),	// Every element contains an isAlive after it's created
+	cloneSize : new T.Vector3( 1, 2, 1 ),
 	cloneEffect: {
 		mesh: new T.Mesh( new THREE.SphereGeometry( 5, 32, 32 ), 
 			new THREE.MeshBasicMaterial({color: 0x0000ff, transparent: true, opacity: 0.5})),
@@ -69,11 +67,10 @@ var player = {
 		cloneStartingTime: undefined,
 		startCloning: function(player) {
 			var oParams = player.dubba.geometry.parameters; // Object parameters
-			var cParams = player.clone.dubba.geometry.parameters // Clone parameters
 			
-			if( oParams.width - cParams.width > player.minSize.x &&
-				oParams.height - cParams.height > player.minSize.y &&
-				oParams.depth - cParams.depth > player.minSize.z 
+			if( oParams.width - player.cloneSize.x > player.minSize.x &&
+				oParams.height - player.cloneSize.y > player.minSize.y &&
+				oParams.depth - player.cloneSize.z > player.minSize.z 
 			) {
 				player.clones[player.clones.length] = player.dubba.clone();
 				player.clones[player.clones.length-1].add(player.cloneEffect.mesh);
@@ -88,7 +85,6 @@ var player = {
 		},
 		createClone: function(player) {
 			var oParams = player.dubba.geometry.parameters; // Object parameters
-			var cParams = player.clone.dubba.geometry.parameters // Clone parameters
 			player.clones[player.clones.length-1].geometry = new T.BoxGeometry(player.minSize.x, player.minSize.y, player.minSize.z );
 			player.clones[player.clones.length-1].position.set ( 
 				player.dubba.position.x,
@@ -100,16 +96,15 @@ var player = {
 				scene.add(player.clones[player.clones.length-1]);
 			}
 			player.dubba.geometry = new T.BoxGeometry(
-				oParams.width - cParams.width,
-				oParams.height - cParams.height,
-				oParams.depth - cParams.depth
+				oParams.width - player.cloneSize.x,
+				oParams.height - player.cloneSize.y,
+				oParams.depth - player.cloneSize.z
 			);
 		},
 		continueCloning: function(player) {
 			//Assumes Key state is already checked
 			var c = player.cloneEffect;
 			if(c.cloning){
-				console.log("Making the sphere");
 				var time = new Date();
 				var delT = (time.getSeconds() - c.cloneStartingTime.getSeconds()) 
 					+ (time.getMilliseconds() - c.cloneStartingTime.getMilliseconds())/1000;
@@ -144,7 +139,7 @@ var player = {
 		isMoving : false,
 		updateSizeStartTime : undefined,
 		updateSizeAfter : 0.01, // seconds
-		factor : new T.Vector3 ( 1, 1, 1 ),
+		factor : new T.Vector3 ( 2, 2, 2 ),		// Factor with which size is to be increased with movement
 		movingOpacity : 0.7,
 		stopOpacity : 0.05,
 		startMoving : function ( player ) {
@@ -203,7 +198,6 @@ var player = {
 		this.dubba.add(this.camera);
 		this.camera.position.set(0, 6, 15);
 		//This is the list of properties that will be copied to the clone
-		this.clone.dubba = this.dubba.clone();
 	},
 	addToScene: function () {
 		scene.add(this.dubba);
