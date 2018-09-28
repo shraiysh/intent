@@ -12,7 +12,7 @@ var room = {
 	material : new T.MeshPhongMaterial(),
 	floor : {
 		width : 100, length : 100, thickness : 1, yPos: -10,
-		rows: 1000, cols: 1000, bMargin: 0.03,
+		rows: 10, cols: 10, bMargin: 0.03,
 		mesh: Array(this.rows),
 	},
 	light: new T.PointLight(0xffffff, 0.75, 10000, 2),
