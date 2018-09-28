@@ -12,7 +12,7 @@ var room = {
 	material : new T.MeshPhongMaterial(),
 	floor : {
 		width : 100, length : 100, thickness : 1, yPos: -10,
-		rows: 10, cols: 10, bMargin: 0.03,
+		rows: 1000, cols: 1000, bMargin: 0.03,
 		mesh: Array(this.rows),
 	},
 	light: new T.PointLight(0xffffff, 0.75, 10000, 2),
@@ -51,8 +51,16 @@ var room = {
 var printInfo = false; //Debug only
 
 var player = {
-	material : new T.MeshPhongMaterial( { color: 0x00ff00 } ),
+	material : new T.MeshPhongMaterial( { color: 0x00ff00 , transparent : true} ),
 	dubba : new T.Mesh( new T.BoxGeometry(1, 2, 1), undefined ),
+	flag: Array(5).fill(false), 
+	keyIndexMap: [['a', 0], ['s', 1], ['d', 2], ['w', 3], ['e', 4], ['q', 5]],
+	speed: 0.05, camera: undefined,
+	maxSize : new T.Vector3 ( 6, 12,  6), minSize : new T.Vector3 ( 1, 2, 1 ),
+	clones : Array(0),
+	clone: {
+		isAlive: false
+	}, //A Definition for a clone, use an array of objects of this type to implement clones
 	cloneEffect: {
 		mesh: new T.Mesh( new THREE.SphereGeometry( 5, 32, 32 ), 
 			new THREE.MeshBasicMaterial({color: 0x0000ff, transparent: true, opacity: 0.5})),
@@ -60,19 +68,42 @@ var player = {
 		cloneTime: 1, //Seconds
 		cloneStartingTime: undefined,
 		startCloning: function(player) {
-			player.clone.dubba.add(player.cloneEffect.mesh);
-			player.cloneEffect.cloning = true;
-			player.cloneEffect.cloneStartingTime = new Date(); 
-			this.createClone(player);
+			var oParams = player.dubba.geometry.parameters; // Object parameters
+			var cParams = player.clone.dubba.geometry.parameters // Clone parameters
+			
+			if( oParams.width - cParams.width > player.minSize.x &&
+				oParams.height - cParams.height > player.minSize.y &&
+				oParams.depth - cParams.depth > player.minSize.z 
+			) {
+				player.clone.dubba.add(player.cloneEffect.mesh);
+				player.cloneEffect.cloning = true;
+				player.cloneEffect.cloneStartingTime = new Date(); 
+				this.createClone(player);
+			}
+			else {
+				console.log("TOO SMALL");
+				// Make a sound of unable to create clone coz of less size.
+			}
 		},
 		createClone: function(player) {
-			player.clone.dubba.translateX( player.dubba.position.x - player.clone.dubba.position.x );
-			player.clone.dubba.translateY( player.dubba.position.y - player.clone.dubba.position.y );
-			player.clone.dubba.translateZ( player.dubba.position.z - player.clone.dubba.position.z );
-			if(!player.clone.isAlive) {
-				player.clone.isAlive = true;
-				scene.add(player.clone.dubba);
+			var oParams = player.dubba.geometry.parameters; // Object parameters
+			var cParams = player.clone.dubba.geometry.parameters // Clone parameters
+			player.clones[player.clones.length] = player.dubba.clone();
+			player.clones[player.clones.length-1].geometry = new T.BoxGeometry(player.minSize.x, player.minSize.y, player.minSize.z );
+			player.clones[player.clones.length-1].position.set ( 
+				player.dubba.position.x,
+				player.dubba.position.y,
+				player.dubba.position.z
+			);
+			if(!player.clones[player.clones.length-1].isAlive) {
+				player.clones[player.clones.length-1].isAlive = true;
+				scene.add(player.clones[player.clones.length-1]);
 			}
+			player.dubba.geometry = new T.BoxGeometry(
+				oParams.width - cParams.width,
+				oParams.height - cParams.height,
+				oParams.depth - cParams.depth
+			);
 		},
 		continueCloning: function(player) {
 			//Assumes Key state is already checked
@@ -94,12 +125,7 @@ var player = {
 			}
 		},
 	},
-	flag: Array(5).fill(false), 
-	keyIndexMap: [['a', 0], ['s', 1], ['d', 2], ['w', 3], ['e', 4], ['q', 5]],
-	speed: 0.05, camera: undefined,
-	clone: {
-		isAlive: false
-	}, //A Definition for a clone, use an array of objects of this type to implement clones
+	
 	teleport : {
 		teleporting: false,
 		teleport: function(player) {
@@ -112,6 +138,60 @@ var player = {
 			}
 		},
 	},
+	motionEffect: {
+		isMoving : false,
+		updateSizeStartTime : undefined,
+		updateSizeAfter : 0.01, // seconds
+		factor : new T.Vector3 ( 1, 1, 1 ),
+		movingOpacity : 0.7,
+		stopOpacity : 0.05,
+		startMoving : function ( player ) {
+			this.isMoving = true;
+			this.updateSizeStartTime = new Date();
+		},
+		moving : function ( player , dT) {
+			// Opacity
+			player.material.opacity = this.movingOpacity;
+
+			// Player Position
+			if( !this.isMoving ) this.startMoving( player );
+			var lookVector = new T.Vector3(-player.camera.position.x, 0,-player.camera.position.z).normalize();
+			var left = new T.Vector3(lookVector.z, 0, - lookVector.x); //left = y cross lookVector
+			var disp = new T.Vector3();
+
+			if(player.flag[0]) disp.add(left);
+			if(player.flag[3]) disp.add(lookVector);
+			if(player.flag[2]) disp.add(left.negate());
+			if(player.flag[1]) disp.add(lookVector.negate());
+
+			disp.normalize().multiplyScalar(dT * player.speed);
+			player.dubba.position.add(disp);
+
+			// Player size
+			var oParams = player.dubba.geometry.parameters;
+			if ( oParams.width < player.maxSize.x || oParams.height < player.maxSize.y || oParams.depth < player.maxSize.z) {
+				var time = new Date();
+				var delT = (time.getSeconds() - this.updateSizeStartTime.getSeconds()) 
+					+ (time.getMilliseconds() - this.updateSizeStartTime.getMilliseconds())/1000;
+				if( delT > this.updateSizeAfter ) {
+					var possibleWidth = oParams.width * ( 1 + delT * this.factor.x);
+					var possibleHeight = oParams.height * ( 1 + delT * this.factor.y);
+					var possibleDepth = oParams.depth * ( 1 + delT * this.factor.z);
+					player.dubba.geometry = new T.BoxGeometry ( 
+						possibleWidth < player.maxSize.x ? possibleWidth : player.maxSize.x,
+						possibleHeight < player.maxSize.y ? possibleHeight : player.maxSize.y,
+						possibleDepth < player.maxSize.z ? possibleDepth : player.maxSize.z
+					);
+					this.updateSizeStartTime = new Date();
+				}
+			}
+		},			
+		stop : function ( player ) {
+			player.material.opacity = this.stopOpacity;
+			this.isMoving = false;
+			this.updateSizeStartTime = undefined;
+		}
+	},
 	init : function (camera) {
 		this.camera = camera;
 		this.dubba.material = this.material;
@@ -119,7 +199,7 @@ var player = {
 		document.addEventListener("keyup", this.onKeyUp, false);
 		this.addToScene();
 		this.dubba.add(this.camera);
-		this.camera.position.set(0, 2, 5);
+		this.camera.position.set(0, 6, 15);
 		//This is the list of properties that will be copied to the clone
 		this.clone.dubba = this.dubba.clone();
 	},
@@ -127,18 +207,11 @@ var player = {
 		scene.add(this.dubba);
 	},
 	update: function (dT) {
-		this.camera.lookAt( player.dubba.position );
-		var lookVector = new T.Vector3(-this.camera.position.x, 0,-this.camera.position.z).normalize();
-		var left = new T.Vector3(lookVector.z, 0, - lookVector.x); //left = y cross lookVector
-		var disp = new T.Vector3();
-
-		if(this.flag[0]) disp.add(left);
-		if(this.flag[3]) disp.add(lookVector);
-		if(this.flag[2]) disp.add(left.negate());
-		if(this.flag[1]) disp.add(lookVector.negate());
-
-		disp.normalize().multiplyScalar(dT * this.speed);
-		player.dubba.position.add(disp);
+		player.camera.lookAt( player.dubba.position );
+		if( this.flag[0] | this.flag[1] | this.flag[2] | this.flag[3] ) {
+			this.motionEffect.moving( player, dT );
+		}
+		else this.motionEffect.stop( player );
 
 		if(this.flag[4]){
 			if(this.cloneEffect.cloning) this.cloneEffect.continueCloning(this);
