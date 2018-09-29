@@ -56,7 +56,7 @@ var player = {
 	flag: Array(5).fill(false), 
 	keyIndexMap: [['a', 0], ['s', 1], ['d', 2], ['w', 3], ['e', 4], ['q', 5]],
 	speed: 0.05, camera: undefined,
-	maxSize : new T.Vector3 ( 6, 12,  6), minSize : new T.Vector3 ( 1, 2, 1 ),
+	minSize : new T.Vector3 ( 1, 2, 1 ),
 	clones : Array(0),	// Every element contains an isAlive after it's created
 	cloneSize : new T.Vector3( 1, 2, 1 ),
 	cloneEffect: {
@@ -68,15 +68,13 @@ var player = {
 		startCloning: function(player) {
 			var oParams = player.dubba.geometry.parameters; // Object parameters
 			
-			if( oParams.width - player.cloneSize.x > player.minSize.x &&
-				oParams.height - player.cloneSize.y > player.minSize.y &&
-				oParams.depth - player.cloneSize.z > player.minSize.z 
-			) {
+			if( player.dubba.scale.x > 2 && player.dubba.scale.y > 2 && player.dubba.scale.z > 2) {
 				player.clones[player.clones.length] = player.dubba.clone();
 				player.clones[player.clones.length-1].add(player.cloneEffect.mesh);
 				player.cloneEffect.cloning = true;
 				player.cloneEffect.cloneStartingTime = new Date(); 
 				this.createClone(player);
+				player.motionEffect.delT = player.motionEffect.delT / 2;
 			}
 			else {
 				console.log("TOO SMALL");
@@ -85,7 +83,8 @@ var player = {
 		},
 		createClone: function(player) {
 			var oParams = player.dubba.geometry.parameters; // Object parameters
-			player.clones[player.clones.length-1].geometry = new T.BoxGeometry(player.minSize.x, player.minSize.y, player.minSize.z );
+			player.clones[player.clones.length-1].geometry = new T.BoxGeometry(player.cloneSize.x, player.cloneSize.y, player.cloneSize.z );
+			player.clones[player.clones.length-1].scale.set(1,1,1); 
 			player.clones[player.clones.length-1].position.set ( 
 				player.dubba.position.x,
 				player.dubba.position.y,
@@ -95,11 +94,7 @@ var player = {
 				player.clones[player.clones.length-1].isAlive = true;
 				scene.add(player.clones[player.clones.length-1]);
 			}
-			player.dubba.geometry = new T.BoxGeometry(
-				oParams.width - player.cloneSize.x,
-				oParams.height - player.cloneSize.y,
-				oParams.depth - player.cloneSize.z
-			);
+			player.dubba.scale.set( player.dubba.scale.x / 2, player.dubba.scale.y / 2, player.dubba.scale.z / 2 );	
 		},
 		continueCloning: function(player) {
 			//Assumes Key state is already checked
@@ -137,14 +132,16 @@ var player = {
 	},
 	motionEffect: {
 		isMoving : false,
-		updateSizeStartTime : undefined,
+		moveStartTime : undefined,
 		updateSizeAfter : 0.01, // seconds
-		factor : new T.Vector3 ( 2, 2, 2 ),		// Factor with which size is to be increased with movement
+		factor : 0.1,		// Factor with which size is to be increased with movement
 		movingOpacity : 0.7,
 		stopOpacity : 0.05,
+		delT : 0,		// Time from last time cloned to current time
+		maxScale : new T.Vector3( 10, 10, 10 ),
 		startMoving : function ( player ) {
 			this.isMoving = true;
-			this.updateSizeStartTime = new Date();
+			this.moveStartTime = new Date();
 		},
 		moving : function ( player , dT) {
 			// Opacity
@@ -166,21 +163,14 @@ var player = {
 
 			// Player size
 			var oParams = player.dubba.geometry.parameters;
-			if ( oParams.width < player.maxSize.x || oParams.height < player.maxSize.y || oParams.depth < player.maxSize.z) {
+			if ( player.dubba.scale.x < this.maxScale.x && player.dubba.scale.y < this.maxScale.y && player.dubba.scale.z < this.maxScale.z) {
 				var time = new Date();
-				var delT = (time.getSeconds() - this.updateSizeStartTime.getSeconds()) 
-					+ (time.getMilliseconds() - this.updateSizeStartTime.getMilliseconds())/1000;
-				if( delT > this.updateSizeAfter ) {
-					var possibleWidth = oParams.width * ( 1 + delT * this.factor.x);
-					var possibleHeight = oParams.height * ( 1 + delT * this.factor.y);
-					var possibleDepth = oParams.depth * ( 1 + delT * this.factor.z);
-					player.dubba.geometry = new T.BoxGeometry ( 
-						possibleWidth < player.maxSize.x ? possibleWidth : player.maxSize.x,
-						possibleHeight < player.maxSize.y ? possibleHeight : player.maxSize.y,
-						possibleDepth < player.maxSize.z ? possibleDepth : player.maxSize.z
-					);
-					this.updateSizeStartTime = new Date();
-				}
+				this.delT += (time.getSeconds() - this.moveStartTime.getSeconds()) 
+					+ (time.getMilliseconds() - this.moveStartTime.getMilliseconds())/1000;
+				var possibleWidth = oParams.width * ( 1 + this.delT * this.factor.x);
+				var possibleHeight = oParams.height * ( 1 + this.delT * this.factor.y);
+				var possibleDepth = oParams.depth * ( 1 + this.delT * this.factor.z);
+				player.dubba.scale.x = player.dubba.scale.y = player.dubba.scale.z = 1 + this.delT * this.factor
 			}
 		},			
 		stop : function ( player ) {
@@ -196,7 +186,7 @@ var player = {
 		document.addEventListener("keyup", this.onKeyUp, false);
 		this.addToScene();
 		this.dubba.add(this.camera);
-		this.camera.position.set(0, 6, 15);
+		this.camera.position.set(0, 2, 5);
 		//This is the list of properties that will be copied to the clone
 	},
 	addToScene: function () {
