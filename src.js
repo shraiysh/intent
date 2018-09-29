@@ -60,142 +60,142 @@ var room = {
 
 var printInfo = false; //Debug only
 
-var player = {
-	material : Physijs.createMaterial( new T.MeshPhongMaterial( { color: 0x00ff00 , transparent: true} ), 0, 1),
-	imageMaterial : new T.MeshPhongMaterial( { color: 0x00ff00 , transparent: true} ),
-	dubba : new Physijs.BoxMesh( new T.BoxGeometry(1, 2, 1), undefined, 1 ),
-	flag: Array(5).fill(false), 
-	keyIndexMap: [['a', 0], ['s', 1], ['d', 2], ['w', 3], ['e', 4], ['q', 5]],
-	speed: 15, camera: undefined,
-	minSize : new T.Vector3 ( 1, 2, 1 ),
-	clones : Array(0),	// Every element contains an isAlive after it's created
-	cloneSize : new T.Vector3( 1, 2, 1 ),
-	cloneEffect: {
-		mesh: new T.Mesh( new THREE.SphereGeometry( 5, 32, 32 ), 
-			new THREE.MeshBasicMaterial({color: 0x0000ff, transparent: true, opacity: 0.5})),
-		isCloning: false, 
-		cloneTime: 1, //Seconds
-		cloneStartingTime: undefined,
-		startCloning: function(player) {			
-			if( player.dubba.scale.x > 2 && player.dubba.scale.y > 2 && player.dubba.scale.z > 2) {
-				player.cloneEffect.isCloning = true;
-				player.cloneEffect.cloneStartingTime = new Date(); 
-				this.createClone(player);
-			}
-			else {
-				console.log("TOO SMALL");
-				// Make a sound of unable to create clone coz of less size.
-			}
-		},
-		createClone: function(player) {
-			var lookVector = new T.Vector3(-player.camera.position.x, 0, -player.camera.position.z);
-				// .multiplyScalar(player.dubba.scale.length());
-			var clone = player.dubba.clone();
-			clone.add(player.cloneEffect.mesh);
-
-			clone.scale.set(1,1,1); 
-			clone.position.add(lookVector);
-			if(!clone.isAlive) {
-				clone.isAlive = true;
-				scene.add(clone);
-			}
-			player.dubba.scale.set( player.dubba.scale.x / 2, player.dubba.scale.y / 2, player.dubba.scale.z / 2 );	
-			player.clones.push(clone);
-		},
-		continueCloning: function(player) {
-			//Assumes Key state is already checked
-			var c = player.cloneEffect;
-			if(c.isCloning){
-				var time = new Date();
-				var delT = (time.getSeconds() - c.cloneStartingTime.getSeconds()) 
-					+ (time.getMilliseconds() - c.cloneStartingTime.getMilliseconds())/1000;
-				if(delT > c.cloneTime){
-					//Cloning Completed, Place a form there
-					c.isCloning = false;
-					player.clones[player.clones.length-1].remove(c.mesh);
+class Player {
+	constructor() {
+		this.material = Physijs.createMaterial( new T.MeshPhongMaterial( { color: 0x00ff00 , transparent: true} ), 0, 1);
+		this.imageMaterial = new T.MeshPhongMaterial( { color: 0x00ff00 , transparent: true} );
+		this.dubba = new Physijs.BoxMesh( new T.BoxGeometry(1, 2, 1), undefined, 1 );
+		this.flag = Array(5).fill(false);
+		this.keyIndexMap = [['a', 0], ['s', 1], ['d', 2], ['w', 3], ['e', 4], ['q', 5]];
+		this.speed = 15;
+		this.camera = undefined;
+		this.minSize = new T.Vector3 ( 1, 2, 1 );
+		this.clones = Array(0);	// Every element contains an isAlive after it's created
+		this.cloneSize = new T.Vector3( 1, 2, 1 );
+		this.cloneEffect = {
+			mesh: new T.Mesh( new THREE.SphereGeometry( 5, 32, 32 ), 
+				new THREE.MeshBasicMaterial({color: 0x0000ff, transparent: true, opacity: 0.5})),
+			isCloning: false, 
+			cloneTime: 1, //Seconds
+			cloneStartingTime: undefined,
+			startCloning: function(player) {			
+				if( player.dubba.scale.x > 2 && player.dubba.scale.y > 2 && player.dubba.scale.z > 2) {
+					player.cloneEffect.isCloning = true;
+					player.cloneEffect.cloneStartingTime = new Date(); 
+					this.createClone(player);
 				}
-				else{
-					var r = (delT / c.cloneTime);
-					c.mesh.scale.x = c.mesh.scale.y = c.mesh.scale.z = r;
-					c.mesh.material.opacity = 1 - r;
+				else {
+					console.log("TOO SMALL");
+					// Make a sound of unable to create clone coz of less size.
 				}
+			},
+			createClone: function(player) {
+				var lookVector = new T.Vector3(-player.camera.position.x, 0, -player.camera.position.z);
+					// .multiplyScalar(player.dubba.scale.length());
+				var clone = player.dubba.clone();
+				clone.add(player.cloneEffect.mesh);
+
+				clone.scale.set(1,1,1); 
+				clone.position.add(lookVector);
+				if(!clone.isAlive) {
+					clone.isAlive = true;
+					scene.add(clone);
+				}
+				player.dubba.scale.set( player.dubba.scale.x / 2, player.dubba.scale.y / 2, player.dubba.scale.z / 2 );	
+				player.clones.push(clone);
+			},
+			continueCloning: function(player) {
+				//Assumes Key state is already checked
+				var c = player.cloneEffect;
+				if(c.isCloning){
+					var time = new Date();
+					var delT = (time.getSeconds() - c.cloneStartingTime.getSeconds()) 
+						+ (time.getMilliseconds() - c.cloneStartingTime.getMilliseconds())/1000;
+					if(delT > c.cloneTime){
+						//Cloning Completed, Place a form there
+						c.isCloning = false;
+						player.clones[player.clones.length-1].remove(c.mesh);
+					}
+					else{
+						var r = (delT / c.cloneTime);
+						c.mesh.scale.x = c.mesh.scale.y = c.mesh.scale.z = r;
+						c.mesh.material.opacity = 1 - r;
+					}
+				}
+			},
+		};
+		this.teleport = {
+			teleporting: false,
+			teleport: function(player) {
+				if(player.clones.length === 0) return;
+				var index = Math.floor ( Math.random () * player.clones.length );
+				if(player.clones[index].isAlive) {
+					var p1 = player.dubba.position;
+					var p2 = player.clones[index].position;
+					var temp = new T.Vector3(p1.x, p1.y, p1.z);
+					p1.set(p2.x, p2.y, p2.z);
+					p2.set(temp.x, temp.y, temp.z);
+				}
+			},
+		};
+		this.motionEffect= {
+			isMoving : false,
+			factor : 0.01,		// Factor with which size is to be increased with movement
+			movingOpacity : 0.7,
+			stopOpacity : 0.5,
+			maxScale : new T.Vector3( 10, 10, 10 ),
+
+			moving : function ( player , dT) {
+				// Opacity
+				player.material.opacity = this.movingOpacity;
+
+				// Player Position
+				if( !this.isMoving ) this.isMoving = true;
+				var lookVector = new T.Vector3(-player.camera.position.x, 0,-player.camera.position.z).normalize();
+				var left = new T.Vector3(lookVector.z, 0, - lookVector.x); //left = y cross lookVector
+				var disp = new T.Vector3();
+
+				if(player.flag[0]) disp.add(left);
+				if(player.flag[3]) disp.add(lookVector);
+				if(player.flag[2]) disp.add(left.negate());
+				if(player.flag[1]) disp.add(lookVector.negate());
+
+				disp.normalize().multiplyScalar(player.speed);
+				player.dubba.setLinearVelocity(disp);
+
+				// Player size
+				if ( player.dubba.scale.length() < this.maxScale.length()) 
+					player.dubba.scale.addScalar(dT * this.factor);
+			},			
+			stop : function ( player ) {
+				player.material.opacity = this.stopOpacity;
+				this.isMoving = false;
+				this.updateSizeStartTime = undefined;
+				player.dubba.setLinearVelocity(new T.Vector3(0, 0, 0));
 			}
-		},
-	},
-	
-	teleport : {
-		teleporting: false,
-		teleport: function(player) {
-			if(player.clones.length === 0) return;
-			var index = Math.floor ( Math.random () * player.clones.length );
-			if(player.clones[index].isAlive) {
-				var p1 = player.dubba.position;
-				var p2 = player.clones[index].position;
-				var temp = new T.Vector3(p1.x, p1.y, p1.z);
-				p1.set(p2.x, p2.y, p2.z);
-				p2.set(temp.x, temp.y, temp.z);
-			}
-		},
-	},
-	motionEffect: {
-		isMoving : false,
-		factor : 0.01,		// Factor with which size is to be increased with movement
-		movingOpacity : 0.7,
-		stopOpacity : 0.5,
-		maxScale : new T.Vector3( 10, 10, 10 ),
-
-		moving : function ( player , dT) {
-			// Opacity
-			player.material.opacity = this.movingOpacity;
-
-			// Player Position
-			if( !this.isMoving ) this.isMoving = true;
-			var lookVector = new T.Vector3(-player.camera.position.x, 0,-player.camera.position.z).normalize();
-			var left = new T.Vector3(lookVector.z, 0, - lookVector.x); //left = y cross lookVector
-			var disp = new T.Vector3();
-
-			if(player.flag[0]) disp.add(left);
-			if(player.flag[3]) disp.add(lookVector);
-			if(player.flag[2]) disp.add(left.negate());
-			if(player.flag[1]) disp.add(lookVector.negate());
-
-			disp.normalize().multiplyScalar(player.speed);
-			player.dubba.setLinearVelocity(disp);
-
-			// Player size
-			if ( player.dubba.scale.length() < this.maxScale.length()) 
-				player.dubba.scale.addScalar(dT * this.factor);
-		},			
-		stop : function ( player ) {
-			player.material.opacity = this.stopOpacity;
-			this.isMoving = false;
-			this.updateSizeStartTime = undefined;
-			player.dubba.setLinearVelocity(new T.Vector3(0, 0, 0));
-		}
-	},
-	init : function (camera) {
+		};
+	}
+	init (camera) {
 		this.camera = camera;
 		this.dubba.material = this.material;
-		document.addEventListener("keydown", this.onKeyDown, false);
-		document.addEventListener("keyup", this.onKeyUp, false);
-		document.addEventListener("mousedown", this.onMouseDown, false);
 		this.dubba.add(this.camera);
 		this.dubba.inertia = Infinity; // Disables rotation on all collisions
 		this.camera.position.set(0, 2, 5);
 		this.addToScene();
 
 		//This is the list of properties that will be copied to the clone
-	},
-	addToScene: function () {
+	}
+	addToScene () {
 		scene.add( this.dubba );
 		// scene.add( this.motionEffect.image );
-	},
-	update: function (dT) {
-		player.camera.lookAt( player.dubba.position );
+	}
+	update (dT) {
+		this.dubba.setAngularVelocity({x: 0, y: 0, z: 0});
+		this.camera.lookAt( this.dubba.position );
 		if( this.flag[0] | this.flag[1] | this.flag[2] | this.flag[3] ) {
-			this.motionEffect.moving( player, dT );
+			this.motionEffect.moving( this, dT );
 		}
-		else this.motionEffect.stop( player );
+		else this.motionEffect.stop( this );
 
 		if(this.flag[4]){
 			if(this.cloneEffect.isCloning) this.cloneEffect.continueCloning(this);
@@ -216,27 +216,35 @@ var player = {
 				socket.emit('private message', socket.id, 'data');
 			}
 		}
-	},
-	keyHandling: function(event, val) {
-		player.keyIndexMap.filter((item) => item[0] === event.key )
-			.forEach((item) => player.flag[item[1]] = val);
-	},
-	onKeyDown : function (event) {
-		player.keyHandling(event, true);
-	},
-	onKeyUp : function (event) {
-		player.keyHandling(event, false);
-	},
-	onMouseDown: function(event) {
-		if(event.button === 0){ //First Click
-			var dir = new T.Vector3();
-			var pos = new T.Vector3();
-			player.dubba.getWorldPosition(pos);
-			camera.getWorldDirection( dir );
-			bulletMgr.createBullet(dir, pos, player.dubba.scale.x);
-		}
 	}
 }
+
+var keyHandling = function (event, val) {
+	player.keyIndexMap.filter((item) => item[0] === event.key )
+		.forEach((item) => player.flag[item[1]] = val);
+}
+var onKeyDown = function (event) {
+	keyHandling(event, true);
+}
+var onKeyUp = function (event) {
+	keyHandling(event, false);
+}
+var onMouseDown = function (event) {
+	if(event.button === 0){ //First Click
+		var dir = new T.Vector3();
+		var pos = new T.Vector3();
+		player.dubba.getWorldPosition(pos);
+		camera.getWorldDirection( dir );
+		bulletMgr.createBullet(dir, pos, player.dubba.scale.x);
+	}
+}
+
+document.addEventListener("keydown", onKeyDown, false);
+document.addEventListener("keyup", onKeyUp, false);
+document.addEventListener("mousedown", onMouseDown, false);
+
+
+var player = new Player();
 
 var bulletMgr = {
 	bullets: [],
