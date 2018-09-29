@@ -14,6 +14,13 @@ var renderer = new T.WebGLRenderer();
 renderer.setSize( window.innerWidth, window.innerHeight );
 document.body.appendChild( renderer.domElement );
 
+var socket = io('http://localhost');
+socket.on('message', function (data) {
+	// console.log(data);
+	console.log('Message from server: ' + data.time);
+	// socket.emit('my other event', { my: 'data' });
+});
+
 var room = {
 	material : Physijs.createMaterial(new T.MeshLambertMaterial(), 0, 0),
 	floor : {
@@ -85,7 +92,7 @@ var player = {
 				// .multiplyScalar(player.dubba.scale.length());
 			var clone = player.dubba.clone();
 			clone.add(player.cloneEffect.mesh);
-			
+
 			clone.scale.set(1,1,1); 
 			clone.position.add(lookVector);
 			if(!clone.isAlive) {
@@ -119,6 +126,7 @@ var player = {
 	teleport : {
 		teleporting: false,
 		teleport: function(player) {
+			if(player.clones.length === 0) return;
 			var index = Math.floor ( Math.random () * player.clones.length );
 			if(player.clones[index].isAlive) {
 				var p1 = player.dubba.position;
@@ -202,6 +210,12 @@ var player = {
 			}
 		}
 		else this.teleport.teleporting = false;
+
+		if(this.flag[5]){
+			if(socket){
+				socket.emit('private message', socket.id, 'data');
+			}
+		}
 	},
 	keyHandling: function(event, val) {
 		player.keyIndexMap.filter((item) => item[0] === event.key )
