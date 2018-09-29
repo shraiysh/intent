@@ -12,11 +12,12 @@ console.log('Using HTTP Server on port 80.');
 var time = 0;
 var playerIndex = 0, enemyIndex = 0;
 var player1Socket = undefined, player2Socket = undefined;
+var pl1plPos, pl1enPos;
 
 io.on('connection', function (socket) {
 	console.log('Player Connected: ' + socket.id);
 
-	socket.on('requestIDS', function (data) {
+	socket.on('requestIDS', function (player1playerPos, player1enemyPos) {
 		console.log('Player with id ' + socket.id + ' requested IDs.');
 		if(player1Socket){
 			console.log('Player 2 Found.');
@@ -24,11 +25,13 @@ io.on('connection', function (socket) {
 		} 
 		else {
 			console.log('Player 1 Found.');
+			pl1plPos = player1playerPos;
+			pl1enPos = player1enemyPos;
 			player1Socket = socket;
 		} 
 		playerIndex++;
 		enemyIndex--;
-		socket.emit('processIDS', playerIndex, enemyIndex);
+		socket.emit('processIDS', playerIndex, enemyIndex, player1playerPos, player1enemyPos);
 	});
 
 	socket.on('myPlayerDetails', function (details) {
@@ -39,7 +42,7 @@ io.on('connection', function (socket) {
 });
 
 
-socket.on('disconnect', function (socket) {
+io.on('disconnect', function (socket) {
 	console.log('Player Disconnected: ' + socket.id);
 	if(player1Socket === socket){
 		console.log('Player 1 disconnected.');

@@ -15,17 +15,6 @@ var renderer = new T.WebGLRenderer();
 renderer.setSize( window.innerWidth, window.innerHeight );
 document.body.appendChild( renderer.domElement );
 
-var myPlayerID = undefined, myEnemyID = undefined;
-
-var socket = io('http://localhost');
-socket.on('processIDS', function (plID, enID) {
-	myPlayerID = plID;
-	myEnemyID = enID;
-	if(myPlayerID && myEnemyID) console.log('ID Reception Succeeded.');
-});
-
-socket.emit('requestIDS', undefined);
-
 // socket.on('message', function (data) {
 // 	// console.log(data);
 // 	console.log('Message from server: ' + data.time);
@@ -72,8 +61,8 @@ var room = {
 var printInfo = false; //Debug only
 
 class Player {
-	constructor(camera, position, color, id) {
-		this.uid = id;
+	constructor(camera, position, color) {
+		this.uid = undefined;
 		this.material = Physijs.createMaterial( new T.MeshPhongMaterial( { color: color , transparent: true} ), 0, 1);
 		this.imageMaterial = new T.MeshPhongMaterial( { color: color , transparent: true} );
 		this.dubba = new Physijs.BoxMesh( new T.BoxGeometry(1, 2, 1), undefined, 1 );
@@ -272,6 +261,19 @@ var addInputListeners = function(playerObject){
 //Receive Camera location, player location and flags from the server
 //And set enemy state to the received state 
 
+
+var enemy = new Player(EnemyCamera, {x: room.floor.length/2, y: 0, z: room.floor.width/2}, 0xff0000);
+var player = new Player(camera, {x: -room.floor.length/2, y: 0, z: -room.floor.width/2}, 0x00ff00);
+
+var socket = io('http://localhost');
+socket.on('processIDS', function (plID, enID, plPos, enPos) {
+	player.uid = plID;
+	enemy.uid = enID;
+	player.dubba.position.set(plPos.x, plPos.y, plPos.z);
+	enemy.dubba.position.set(enPos.x, enPos.y, enPos.z);
+	if(plID && enID) console.log('ID Reception Succeeded:', plID, enID);
+});
+
 socket.on('myEnemyDetails', function(details){
 	if(details.flag[0]) console.log('Fuck this shit');
 	enemy.flag = details.flag;
@@ -279,9 +281,7 @@ socket.on('myEnemyDetails', function(details){
 	enemy.dubba.position.set(details.playerPos.x, details.playerPos.y, details.playerPos.z);
 });
 
-
-var enemy = new Player(EnemyCamera, {x: room.floor.length/2, y: 0, z: room.floor.width/2}, 0xff0000, );
-var player = new Player(camera, {x: -room.floor.length/2, y: 0, z: -room.floor.width/2}, 0x00ff00);
+socket.emit('requestIDS', player.dubba.position, enemy.dubba.position);
 
 var bulletMgr = {
 	bullets: [],
