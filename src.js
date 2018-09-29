@@ -15,10 +15,10 @@ renderer.setSize( window.innerWidth, window.innerHeight );
 document.body.appendChild( renderer.domElement );
 
 var room = {
-	material : new T.MeshLambertMaterial(),
+	material : Physijs.createMaterial(new T.MeshLambertMaterial(), 0, 0),
 	floor : {
 		width : 100, length : 100, thickness : 1, yPos: -10,
-		rows: 10, cols: 10, bMargin: 0.03,
+		rows: 5, cols: 5, bMargin: 0.3,
 		mesh: Array(this.rows),
 	},
 	light: new T.PointLight(0xffffff, 0.75, 10000, 2),
@@ -33,7 +33,7 @@ var room = {
 			for( var col = 0; col < t.cols; col++ ) {
 				t.mesh[row][col] = new Physijs.BoxMesh(
 					new T.BoxGeometry( bWid - t.bMargin, t.thickness, bLen - t.bMargin ), 
-					this.material, 0.1);
+					this.material, 0);
 				t.mesh[row][col].position.set( -t.width/2 + (row - 0.5) * bWid, t.yPos, -t.length/2 + (col - 0.5) * bLen );
 			}
 		}
@@ -193,8 +193,8 @@ var bulletMgr = {
 	newBullet: function() {
 		return {
 			mesh: new Physijs.SphereMesh( 
-				new T.SphereGeometry( 0.1, 3, 3 ), 
-				new T.MeshBasicMaterial({ color: 0xff0000 }), 1),
+				new T.SphereGeometry( 0.1, 13, 13 ), 
+				Physijs.createMaterial(new T.MeshBasicMaterial({ color: 0xff0000 }), 0, 0), 1),
 			speed: 15
 		};
 	},
