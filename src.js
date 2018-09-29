@@ -231,13 +231,15 @@ class Player {
 		}
 
 		//Send Camera location, player location and flags to the server
-		var details = {};
-		details.id = this.uid;
-		details.flag = this.flag;
-		details.camPos = this.camera.position;
-		details.playerPos = this.dubba.position;
+		if(this.uid > 0){
+			var details = {};
+			details.id = this.uid;
+			details.flag = this.flag;
+			details.camPos = this.camera.position;
+			details.playerPos = this.dubba.position;
 
-		socket.emit('myPlayerDetails', details);
+			socket.emit('myPlayerDetails', details);
+		}
 	}
 }
 
@@ -271,8 +273,10 @@ var addInputListeners = function(playerObject){
 //And set enemy state to the received state 
 
 socket.on('myEnemyDetails', function(details){
-	if(details.flag[0]) console.log(details);
-	else console.log('Fuck this shit');
+	if(details.flag[0]) console.log('Fuck this shit');
+	enemy.flag = details.flag;
+	enemy.camera.position.set(details.camPos.x, details.camPos.y, details.camPos.z);
+	enemy.dubba.position.set(details.playerPos.x, details.playerPos.y, details.playerPos.z);
 });
 
 

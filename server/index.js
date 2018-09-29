@@ -15,12 +15,9 @@ var player1Socket = undefined, player2Socket = undefined;
 
 io.on('connection', function (socket) {
 	console.log('Player Connected: ' + socket.id);
-	
-	// socket.on('private message', function (from, msg) {
-	// 	console.log('I received a private message by ', from, ' saying ', msg);
-	// });
 
 	socket.on('requestIDS', function (data) {
+		console.log('Player with id ' + socket.id + ' requested IDs.');
 		if(player1Socket){
 			console.log('Player 2 Found.');
 			player2Socket = socket;
@@ -39,6 +36,21 @@ io.on('connection', function (socket) {
 		if(enemySocket) enemySocket.emit('myEnemyDetails', details);
 
 	});
+});
+
+
+socket.on('disconnect', function (socket) {
+	console.log('Player Disconnected: ' + socket.id);
+	if(player1Socket === socket){
+		console.log('Player 1 disconnected.');
+		player1Socket = undefined;
+	} 
+	else if(player2Socket === socket){
+		console.log('Player 2 disconnected.');
+		player2Socket = undefined;
+	} 
+	playerIndex--;
+	enemyIndex++;
 });
 
 //Handling Socket disconnect
