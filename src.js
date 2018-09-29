@@ -8,18 +8,29 @@ var scene = new Physijs.Scene;
 scene.setGravity({x: 0, y: 0, z: 0});
 scene.background = new T.Color(0x77aaff);
 var camera = new T.PerspectiveCamera( 75, window.innerWidth/window.innerHeight, 0.1, 1000 );
+var EnemyCamera = new T.PerspectiveCamera( 75, window.innerWidth/window.innerHeight, 0.1, 1000 );
 
 var controls = new T.OrbitControls( camera, document );
 var renderer = new T.WebGLRenderer();
 renderer.setSize( window.innerWidth, window.innerHeight );
 document.body.appendChild( renderer.domElement );
 
+var myPlayerID = undefined, myEnemyID = undefined;
+
 var socket = io('http://localhost');
-socket.on('message', function (data) {
-	// console.log(data);
-	console.log('Message from server: ' + data.time);
-	// socket.emit('my other event', { my: 'data' });
+socket.on('processIDS', function (plID, enID) {
+	myPlayerID = plID;
+	myEnemyID = enID;
+	if(myPlayerID && myEnemyID) console.log('ID Reception Succeeded.');
 });
+
+socket.emit('requestIDS', undefined);
+
+// socket.on('message', function (data) {
+// 	// console.log(data);
+// 	console.log('Message from server: ' + data.time);
+// 	// socket.emit('my other event', { my: 'data' });
+// });
 
 var room = {
 	material : Physijs.createMaterial(new T.MeshLambertMaterial(), 0, 0),
@@ -61,14 +72,15 @@ var room = {
 var printInfo = false; //Debug only
 
 class Player {
-	constructor() {
-		this.material = Physijs.createMaterial( new T.MeshPhongMaterial( { color: 0x00ff00 , transparent: true} ), 0, 1);
-		this.imageMaterial = new T.MeshPhongMaterial( { color: 0x00ff00 , transparent: true} );
+	constructor(camera, position, color, id) {
+		this.uid = id;
+		this.material = Physijs.createMaterial( new T.MeshPhongMaterial( { color: color , transparent: true} ), 0, 1);
+		this.imageMaterial = new T.MeshPhongMaterial( { color: color , transparent: true} );
 		this.dubba = new Physijs.BoxMesh( new T.BoxGeometry(1, 2, 1), undefined, 1 );
 		this.flag = Array(5).fill(false);
 		this.keyIndexMap = [['a', 0], ['s', 1], ['d', 2], ['w', 3], ['e', 4], ['q', 5]];
 		this.speed = 15;
-		this.camera = undefined;
+		this.camera = camera;
 		this.minSize = new T.Vector3 ( 1, 2, 1 );
 		this.clones = Array(0);	// Every element contains an isAlive after it's created
 		this.cloneSize = new T.Vector3( 1, 2, 1 );
@@ -174,13 +186,14 @@ class Player {
 				player.dubba.setLinearVelocity(new T.Vector3(0, 0, 0));
 			}
 		};
+		this.init(position);
 	}
-	init (camera) {
-		this.camera = camera;
+	init (position) {
 		this.dubba.material = this.material;
 		this.dubba.add(this.camera);
-		this.dubba.inertia = Infinity; // Disables rotation on all collisions
 		this.camera.position.set(0, 2, 5);
+		// this.dubba.inertia = Infinity; // Disables rotation on all collisions
+		this.dubba.position.set(position.x, position.y, position.z);
 		this.addToScene();
 
 		//This is the list of properties that will be copied to the clone
@@ -190,7 +203,7 @@ class Player {
 		// scene.add( this.motionEffect.image );
 	}
 	update (dT) {
-		this.dubba.setAngularVelocity({x: 0, y: 0, z: 0});
+		this.dubba.rotation.set(0, 0, 0);
 		this.camera.lookAt( this.dubba.position );
 		if( this.flag[0] | this.flag[1] | this.flag[2] | this.flag[3] ) {
 			this.motionEffect.moving( this, dT );
@@ -216,35 +229,55 @@ class Player {
 				socket.emit('private message', socket.id, 'data');
 			}
 		}
+
+		//Send Camera location, player location and flags to the server
+		var details = {};
+		details.id = this.uid;
+		details.flag = this.flag;
+		details.camPos = this.camera.position;
+		details.playerPos = this.dubba.position;
+
+		socket.emit('myPlayerDetails', details);
 	}
 }
 
-var keyHandling = function (event, val) {
-	player.keyIndexMap.filter((item) => item[0] === event.key )
-		.forEach((item) => player.flag[item[1]] = val);
-}
-var onKeyDown = function (event) {
-	keyHandling(event, true);
-}
-var onKeyUp = function (event) {
-	keyHandling(event, false);
-}
-var onMouseDown = function (event) {
-	if(event.button === 0){ //First Click
-		var dir = new T.Vector3();
-		var pos = new T.Vector3();
-		player.dubba.getWorldPosition(pos);
-		camera.getWorldDirection( dir );
-		bulletMgr.createBullet(dir, pos, player.dubba.scale.x);
+var addInputListeners = function(playerObject){
+	var keyHandling = function (event, val) {
+		playerObject.keyIndexMap.filter((item) => item[0] === event.key )
+			.forEach((item) => playerObject.flag[item[1]] = val);
 	}
+	var onKeyDown = function (event) {
+		keyHandling(event, true);
+	}
+	var onKeyUp = function (event) {
+		keyHandling(event, false);
+	}
+	var onMouseDown = function (event) {
+		if(event.button === 0){ //First Click
+			var dir = new T.Vector3();
+			var pos = new T.Vector3();
+			playerObject.dubba.getWorldPosition(pos);
+			camera.getWorldDirection( dir );
+			bulletMgr.createBullet(dir, pos, playerObject.dubba.scale.x);
+		}
+	}
+
+	document.addEventListener("keydown", onKeyDown, false);
+	document.addEventListener("keyup", onKeyUp, false);
+	document.addEventListener("mousedown", onMouseDown, false);
 }
 
-document.addEventListener("keydown", onKeyDown, false);
-document.addEventListener("keyup", onKeyUp, false);
-document.addEventListener("mousedown", onMouseDown, false);
+//Receive Camera location, player location and flags from the server
+//And set enemy state to the received state 
+
+socket.on('myEnemyDetails', function(details){
+	if(details.flag[0]) console.log(details);
+	else console.log('Fuck this shit');
+});
 
 
-var player = new Player();
+var enemy = new Player(EnemyCamera, {x: room.floor.length/2, y: 0, z: room.floor.width/2}, 0xff0000, );
+var player = new Player(camera, {x: -room.floor.length/2, y: 0, z: -room.floor.width/2}, 0x00ff00);
 
 var bulletMgr = {
 	bullets: [],
@@ -280,6 +313,7 @@ var animate = function () {
 	
 	var dT = calcFPS();
 	player.update(dT);
+	enemy.update(dT);
 	scene.simulate();
 	renderer.render( scene, camera );
 };
@@ -299,5 +333,5 @@ var calcFPS = function () {
 }
 
 room.init();
-player.init(camera);
+addInputListeners(player);
 animate();
