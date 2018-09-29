@@ -18,7 +18,7 @@ var room = {
 	material : Physijs.createMaterial(new T.MeshLambertMaterial(), 0, 0),
 	floor : {
 		width : 100, length : 100, thickness : 1, yPos: -10,
-		rows: 5, cols: 5, bMargin: 0.3,
+		rows: 10, cols: 10, bMargin: 0.3,
 		mesh: Array(this.rows),
 	},
 	light: new T.PointLight(0xffffff, 0.75, 10000, 2),
@@ -54,12 +54,12 @@ var room = {
 var printInfo = false; //Debug only
 
 var player = {
-	material : new T.MeshPhongMaterial( { color: 0x00ff00 , transparent: true} ),
+	material : Physijs.createMaterial( new T.MeshPhongMaterial( { color: 0x00ff00 , transparent: true} ), 0, 1),
 	imageMaterial : new T.MeshPhongMaterial( { color: 0x00ff00 , transparent: true} ),
-	dubba : new Physijs.BoxMesh( new T.BoxGeometry(1, 2, 1), undefined, 10 ),
+	dubba : new Physijs.BoxMesh( new T.BoxGeometry(1, 2, 1), undefined, 1 ),
 	flag: Array(5).fill(false), 
 	keyIndexMap: [['a', 0], ['s', 1], ['d', 2], ['w', 3], ['e', 4], ['q', 5]],
-	speed: 0.05, camera: undefined,
+	speed: 15, camera: undefined,
 	minSize : new T.Vector3 ( 1, 2, 1 ),
 	clones : Array(0),	// Every element contains an isAlive after it's created
 	cloneSize : new T.Vector3( 1, 2, 1 ),
@@ -69,16 +69,11 @@ var player = {
 		isCloning: false, 
 		cloneTime: 1, //Seconds
 		cloneStartingTime: undefined,
-		startCloning: function(player) {
-			var oParams = player.dubba.geometry.parameters; // Object parameters
-			
+		startCloning: function(player) {			
 			if( player.dubba.scale.x > 2 && player.dubba.scale.y > 2 && player.dubba.scale.z > 2) {
-				player.clones[player.clones.length] = player.dubba.clone();
-				player.clones[player.clones.length-1].add(player.cloneEffect.mesh);
-				player.cloneEffect.cloning = true;
+				player.cloneEffect.isCloning = true;
 				player.cloneEffect.cloneStartingTime = new Date(); 
 				this.createClone(player);
-				player.motionEffect.delT = player.motionEffect.delT / 2;
 			}
 			else {
 				console.log("TOO SMALL");
@@ -86,19 +81,19 @@ var player = {
 			}
 		},
 		createClone: function(player) {
-			var oParams = player.dubba.geometry.parameters; // Object parameters
-			player.clones[player.clones.length-1].geometry = new T.BoxGeometry(player.cloneSize.x, player.cloneSize.y, player.cloneSize.z );
-			player.clones[player.clones.length-1].scale.set(1,1,1); 
-			player.clones[player.clones.length-1].position.set ( 
-				player.dubba.position.x,
-				player.dubba.position.y,
-				player.dubba.position.z
-			);
-			if(!player.clones[player.clones.length-1].isAlive) {
-				player.clones[player.clones.length-1].isAlive = true;
-				scene.add(player.clones[player.clones.length-1]);
+			var lookVector = new T.Vector3(-player.camera.position.x, 0, -player.camera.position.z);
+				// .multiplyScalar(player.dubba.scale.length());
+			var clone = player.dubba.clone();
+			clone.add(player.cloneEffect.mesh);
+			
+			clone.scale.set(1,1,1); 
+			clone.position.add(lookVector);
+			if(!clone.isAlive) {
+				clone.isAlive = true;
+				scene.add(clone);
 			}
 			player.dubba.scale.set( player.dubba.scale.x / 2, player.dubba.scale.y / 2, player.dubba.scale.z / 2 );	
+			player.clones.push(clone);
 		},
 		continueCloning: function(player) {
 			//Assumes Key state is already checked
@@ -109,7 +104,7 @@ var player = {
 					+ (time.getMilliseconds() - c.cloneStartingTime.getMilliseconds())/1000;
 				if(delT > c.cloneTime){
 					//Cloning Completed, Place a form there
-					c.cloning = false;
+					c.isCloning = false;
 					player.clones[player.clones.length-1].remove(c.mesh);
 				}
 				else{
@@ -136,23 +131,17 @@ var player = {
 	},
 	motionEffect: {
 		isMoving : false,
-		moveStartTime : undefined,
-		updateSizeAfter : 0.01, // seconds
-		factor : 0.1,		// Factor with which size is to be increased with movement
+		factor : 0.01,		// Factor with which size is to be increased with movement
 		movingOpacity : 0.7,
-		stopOpacity : 0.05,
-		delT : 0,		// Time from last time cloned to current time
+		stopOpacity : 0.5,
 		maxScale : new T.Vector3( 10, 10, 10 ),
-		startMoving : function ( player ) {
-			this.isMoving = true;
-			this.moveStartTime = new Date();
-		},
+
 		moving : function ( player , dT) {
 			// Opacity
 			player.material.opacity = this.movingOpacity;
 
 			// Player Position
-			if( !this.isMoving ) this.startMoving( player );
+			if( !this.isMoving ) this.isMoving = true;
 			var lookVector = new T.Vector3(-player.camera.position.x, 0,-player.camera.position.z).normalize();
 			var left = new T.Vector3(lookVector.z, 0, - lookVector.x); //left = y cross lookVector
 			var disp = new T.Vector3();
@@ -164,20 +153,10 @@ var player = {
 
 			disp.normalize().multiplyScalar(player.speed);
 			player.dubba.setLinearVelocity(disp);
-			console.log(player.dubba.getLinearVelocity());
-			console.log(disp);
 
 			// Player size
-			var oParams = player.dubba.geometry.parameters;
-			if ( player.dubba.scale.x < this.maxScale.x && player.dubba.scale.y < this.maxScale.y && player.dubba.scale.z < this.maxScale.z) {
-				var time = new Date();
-				this.delT += (time.getSeconds() - this.moveStartTime.getSeconds()) 
-					+ (time.getMilliseconds() - this.moveStartTime.getMilliseconds())/1000;
-				var possibleWidth = oParams.width * ( 1 + this.delT * this.factor.x);
-				var possibleHeight = oParams.height * ( 1 + this.delT * this.factor.y);
-				var possibleDepth = oParams.depth * ( 1 + this.delT * this.factor.z);
-				player.dubba.scale.x = player.dubba.scale.y = player.dubba.scale.z = 1 + this.delT * this.factor
-			}
+			if ( player.dubba.scale.length() < this.maxScale.length()) 
+				player.dubba.scale.addScalar(dT * this.factor);
 		},			
 		stop : function ( player ) {
 			player.material.opacity = this.stopOpacity;
@@ -240,23 +219,23 @@ var player = {
 			var pos = new T.Vector3();
 			player.dubba.getWorldPosition(pos);
 			camera.getWorldDirection( dir );
-			bulletMgr.createBullet(dir, pos);
+			bulletMgr.createBullet(dir, pos, player.dubba.scale.x);
 		}
 	}
 }
 
 var bulletMgr = {
 	bullets: [],
-	newBullet: function() {
+	newBullet: function(scale) {
 		return {
 			mesh: new Physijs.SphereMesh( 
-				new T.SphereGeometry( 0.1, 13, 13 ), 
+				new T.SphereGeometry( scale/10, 13, 13 ), 
 				Physijs.createMaterial(new T.MeshBasicMaterial({ color: 0xff0000 }), 0, 0), 1),
 			speed: 15
 		};
 	},
-	createBullet: function(direction, location) {
-		var temp = this.newBullet();
+	createBullet: function(direction, location, scale) {
+		var temp = this.newBullet(scale);
 		direction.multiplyScalar(2);
 		location.add(direction);
 		temp.mesh.position.set(location.x, location.y, location.z);
