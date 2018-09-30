@@ -294,7 +294,7 @@ var bulletMgr = {
 		this.enemyBullets.forEach(item => {
 			scene.add(item);
 		})
-	}
+	},
 	newBullet: function(scale) {
 		return {
 			mesh: new Physijs.SphereMesh( 
