@@ -12,26 +12,27 @@ console.log('Using HTTP Server on port 80.');
 var time = 0;
 var playerIndex = 0, enemyIndex = 0;
 var player1Socket = undefined, player2Socket = undefined;
-var pl1plPos, pl1enPos;
+
+var plPos = {x: -50, y: 0, z: -50};
+var enPos = {x: +50, y: 0, z: +50};
 
 io.on('connection', function (socket) {
 	console.log('Player Connected: ' + socket.id);
 
-	socket.on('requestIDS', function (player1playerPos, player1enemyPos) {
+	socket.on('requestIDS', function (data) {
+		playerIndex++;
+		enemyIndex--;
 		console.log('Player with id ' + socket.id + ' requested IDs.');
 		if(player1Socket){
 			console.log('Player 2 Found.');
 			player2Socket = socket;
+			socket.emit('processIDS', playerIndex, enemyIndex, enPos, plPos);
 		} 
 		else {
 			console.log('Player 1 Found.');
-			pl1plPos = player1playerPos;
-			pl1enPos = player1enemyPos;
 			player1Socket = socket;
+			socket.emit('processIDS', playerIndex, enemyIndex, plPos, enPos);
 		} 
-		playerIndex++;
-		enemyIndex--;
-		socket.emit('processIDS', playerIndex, enemyIndex, player1playerPos, player1enemyPos);
 	});
 
 	socket.on('myPlayerDetails', function (details) {

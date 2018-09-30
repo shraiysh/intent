@@ -5,7 +5,7 @@ Physijs.scripts.worker = 'js/physijs_worker.js';
 Physijs.scripts.ammo = 'ammo.js';
 
 var scene = new Physijs.Scene;
-scene.setGravity({x: 0, y: 0, z: 0});
+scene.setGravity({x: 0, y: -100, z: 0});
 scene.background = new T.Color(0x77aaff);
 var camera = new T.PerspectiveCamera( 75, window.innerWidth/window.innerHeight, 0.1, 1000 );
 var EnemyCamera = new T.PerspectiveCamera( 75, window.innerWidth/window.innerHeight, 0.1, 1000 );
@@ -24,13 +24,13 @@ document.body.appendChild( renderer.domElement );
 var room = {
 	material : Physijs.createMaterial(new T.MeshLambertMaterial(), 0, 0),
 	floor : {
-		width : 100, length : 100, thickness : 1, yPos: -10,
+		width : 100, length : 100, thickness : 1, yPos: -1.01,
 		rows: 10, cols: 10, bMargin: 0.3,
 		mesh: Array(this.rows),
 	},
-	light: new T.PointLight(0xffffff, 0.75, 10000, 2),
+	light: new T.PointLight(0xffff00, 0.75, 10000, 2),
 	ambLight: new T.AmbientLight(0xffffff),
-	axes: new T.AxesHelper(50),
+	// axes: new T.AxesHelper(50),
 
 	init : function () {
 		var t = this.floor;
@@ -42,6 +42,7 @@ var room = {
 					new T.BoxGeometry( bWid - t.bMargin, t.thickness, bLen - t.bMargin ), 
 					this.material, 0);
 				t.mesh[row][col].position.set( -t.width/2 + (row - 0.5) * bWid, t.yPos, -t.length/2 + (col - 0.5) * bLen );
+				t.mesh[row][col].isWall = true;
 			}
 		}
 		this.light.position.set(0, 15, 0);
@@ -54,7 +55,7 @@ var room = {
 				scene.add(block);
 			})
 		})
-		this.light.add(this.axes);
+		// this.light.add(this.axes);
 	}
 }
 
@@ -67,8 +68,9 @@ class Player {
 		this.imageMaterial = new T.MeshPhongMaterial( { color: color , transparent: true} );
 		this.dubba = new Physijs.BoxMesh( new T.BoxGeometry(1, 2, 1), undefined, 1 );
 		this.flag = Array(5).fill(false);
-		this.keyIndexMap = [['a', 0], ['s', 1], ['d', 2], ['w', 3], ['e', 4], ['q', 5]];
-		this.speed = 15;
+		this.keyIndexMap = [['a', 0], ['s', 1], ['d', 2], ['w', 3], ['e', 4], ['q', 5], [' ', 6]];
+		this.speed = 35;
+		this.camOffset = 3;
 		this.camera = camera;
 		this.minSize = new T.Vector3 ( 1, 2, 1 );
 		this.clones = Array(0);	// Every element contains an isAlive after it's created
@@ -94,7 +96,6 @@ class Player {
 				var lookVector = new T.Vector3(-player.camera.position.x, 0, -player.camera.position.z);
 					// .multiplyScalar(player.dubba.scale.length());
 				var clone = player.dubba.clone();
-				clone.add(player.cloneEffect.mesh);
 
 				clone.scale.set(1,1,1); 
 				clone.position.add(lookVector);
@@ -102,6 +103,7 @@ class Player {
 					clone.isAlive = true;
 					scene.add(clone);
 				}
+				clone.add(player.cloneEffect.mesh);
 				player.dubba.scale.set( player.dubba.scale.x / 2, player.dubba.scale.y / 2, player.dubba.scale.z / 2 );	
 				player.clones.push(clone);
 			},
@@ -141,10 +143,10 @@ class Player {
 		};
 		this.motionEffect= {
 			isMoving : false,
-			factor : 0.01,		// Factor with which size is to be increased with movement
+			factor : 0.001,		// Factor with which size is to be increased with movement
 			movingOpacity : 0.7,
 			stopOpacity : 0.5,
-			maxScale : new T.Vector3( 10, 10, 10 ),
+			maxScale : 10 * 1.732,
 
 			moving : function ( player , dT) {
 				// Opacity
@@ -162,11 +164,15 @@ class Player {
 				if(player.flag[1]) disp.add(lookVector.negate());
 
 				disp.normalize().multiplyScalar(player.speed);
-				player.dubba.setLinearVelocity(disp);
+				if(player.flag[6]) disp.y = player.speed;
 
 				// Player size
-				if ( player.dubba.scale.length() < this.maxScale.length()) 
+				if ( player.dubba.scale.length() < this.maxScale) {
 					player.dubba.scale.addScalar(dT * this.factor);
+				}
+
+				player.dubba.setLinearVelocity(disp);
+				
 			},			
 			stop : function ( player ) {
 				player.material.opacity = this.stopOpacity;
@@ -181,20 +187,17 @@ class Player {
 		this.dubba.material = this.material;
 		this.dubba.add(this.camera);
 		this.camera.position.set(0, 2, 5);
-		// this.dubba.inertia = Infinity; // Disables rotation on all collisions
-		this.dubba.position.set(position.x, position.y, position.z);
+		if(position) this.dubba.position.set(position.x, position.y, position.z);
 		this.addToScene();
-
-		//This is the list of properties that will be copied to the clone
 	}
 	addToScene () {
 		scene.add( this.dubba );
-		// scene.add( this.motionEffect.image );
 	}
 	update (dT) {
 		this.dubba.rotation.set(0, 0, 0);
-		this.camera.lookAt( this.dubba.position );
-		if( this.flag[0] | this.flag[1] | this.flag[2] | this.flag[3] ) {
+		var t = new T.Vector3(this.dubba.position.x, this.dubba.position.y + this.camOffset, this.dubba.position.z);
+		this.camera.lookAt( t );
+		if( this.flag[0] | this.flag[1] | this.flag[2] | this.flag[3] | this.flag[6]) {
 			this.motionEffect.moving( this, dT );
 		}
 		else this.motionEffect.stop( this );
@@ -212,12 +215,6 @@ class Player {
 			}
 		}
 		else this.teleport.teleporting = false;
-
-		if(this.flag[5]){
-			if(socket){
-				socket.emit('private message', socket.id, 'data');
-			}
-		}
 
 		//Send Camera location, player location and flags to the server
 		if(this.uid > 0){
@@ -247,8 +244,9 @@ var addInputListeners = function(playerObject){
 		if(event.button === 0){ //First Click
 			var dir = new T.Vector3();
 			var pos = new T.Vector3();
-			playerObject.dubba.getWorldPosition(pos);
-			camera.getWorldDirection( dir );
+			playerObject.camera.getWorldPosition(pos);
+			dir = new T.Vector3(-playerObject.camera.position.x, -playerObject.camera.position.y,-playerObject.camera.position.z);
+			dir.y += playerObject.camOffset;
 			bulletMgr.createBullet(dir, pos, playerObject.dubba.scale.x);
 		}
 	}
@@ -262,44 +260,51 @@ var addInputListeners = function(playerObject){
 //And set enemy state to the received state 
 
 
-var enemy = new Player(EnemyCamera, {x: room.floor.length/2, y: 0, z: room.floor.width/2}, 0xff0000);
-var player = new Player(camera, {x: -room.floor.length/2, y: 0, z: -room.floor.width/2}, 0x00ff00);
+var enemy = new Player(EnemyCamera, undefined, 0xff0000);
+var player = new Player(camera, undefined, 0x00ff00);
+// player.addToScene();
 
 var socket = io('http://localhost');
 socket.on('processIDS', function (plID, enID, plPos, enPos) {
 	player.uid = plID;
 	enemy.uid = enID;
 	player.dubba.position.set(plPos.x, plPos.y, plPos.z);
+    player.dubba.__dirtyPosition = true;
 	enemy.dubba.position.set(enPos.x, enPos.y, enPos.z);
+    enemy.dubba.__dirtyPosition = true;
 	if(plID && enID) console.log('ID Reception Succeeded:', plID, enID);
 });
 
 socket.on('myEnemyDetails', function(details){
-	if(details.flag[0]) console.log('Fuck this shit');
 	enemy.flag = details.flag;
 	enemy.camera.position.set(details.camPos.x, details.camPos.y, details.camPos.z);
 	enemy.dubba.position.set(details.playerPos.x, details.playerPos.y, details.playerPos.z);
+    enemy.dubba.__dirtyPosition = true;
 });
 
-socket.emit('requestIDS', player.dubba.position, enemy.dubba.position);
+socket.emit('requestIDS', undefined);
 
 var bulletMgr = {
 	bullets: [],
 	newBullet: function(scale) {
 		return {
 			mesh: new Physijs.SphereMesh( 
-				new T.SphereGeometry( scale/10, 13, 13 ), 
+				new T.SphereGeometry( scale/10, 3, 3 ), 
 				Physijs.createMaterial(new T.MeshBasicMaterial({ color: 0xff0000 }), 0, 0), 1),
-			speed: 15
+			speed: 35
 		};
 	},
 	createBullet: function(direction, location, scale) {
 		var temp = this.newBullet(scale);
-		direction.multiplyScalar(2);
-		location.add(direction);
 		temp.mesh.position.set(location.x, location.y, location.z);
+    	temp.mesh.__dirtyPosition = true;
 		direction.multiplyScalar(temp.speed);
 		this.bullets.push(temp);
+		temp.mesh.addEventListener('collision', function( other_object, rel_velocity, rel_rotation, normal ) {
+			if(other_object.isWall){
+				scene.remove(other_object);
+			}
+    	});
 		scene.add(temp.mesh);
 		temp.mesh.setLinearVelocity(direction);
 	},
