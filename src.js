@@ -223,6 +223,7 @@ class Player {
 			details.flag = this.flag;
 			details.camPos = this.camera.position;
 			details.playerPos = this.dubba.position;
+			details.floorMesh = room.floor.mesh;
 
 			socket.emit('myPlayerDetails', details);
 		}
@@ -280,6 +281,8 @@ socket.on('myEnemyDetails', function(details){
 	enemy.camera.position.set(details.camPos.x, details.camPos.y, details.camPos.z);
 	enemy.dubba.position.set(details.playerPos.x, details.playerPos.y, details.playerPos.z);
     enemy.dubba.__dirtyPosition = true;
+    console.log(details.floorMesh);
+    room.floor.mesh = details.floorMesh;
 });
 
 socket.emit('requestIDS', undefined);
@@ -303,6 +306,7 @@ var bulletMgr = {
 		temp.mesh.addEventListener('collision', function( other_object, rel_velocity, rel_rotation, normal ) {
 			if(other_object.isWall){
 				scene.remove(other_object);
+				room.floor.mesh.remove(other_object);
 			}
     	});
 		scene.add(temp.mesh);
