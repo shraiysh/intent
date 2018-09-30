@@ -5,6 +5,17 @@
 		<style>
 			body { margin: 0; }
 			canvas { width: 100%; height: 100% }
+			.center-screen {
+				font-size: 24px;
+				position:fixed;
+    			top: 50%;
+    			left: 50%;
+   		 		width:1em;
+    			height:1em;
+    			margin-top: -0.5em; /*set to a negative number 1/2 of your height*/
+    			margin-left: -.5em; /*set to a negative number 1/2 of your width*/
+    			background-color: rgba(1,1,1,0);
+			}
 		</style>
 	</head>
 	<body>
@@ -13,5 +24,7 @@
 		<script src="js/PlayerControls.js"></script>
 		<script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/2.1.1/socket.io.js"></script>
 		<script src="src.js"></script>
+		<div class="center-screen">⊕</div>
+
 	</body>
 </html>
