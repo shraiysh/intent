@@ -281,7 +281,13 @@ socket.on('myEnemyDetails', function(details){
 	enemy.dubba.position.set(details.playerPos.x, details.playerPos.y, details.playerPos.z);
     enemy.dubba.__dirtyPosition = true;
     console.log(details.bullets);
-    bulletMgr.enemyBullets = details.bullets;
+    bulletMgr.enemyBullets.forEach(item => {
+    	scene.remove(item.mesh);
+    });
+    bulletMgr.enemyBullets = [];
+    details.bullets.forEach(item => {
+    	bulletMgr.enemyBullets.push(item);
+    });
     bulletMgr.renderEnemyBullets();
 });
 
@@ -292,7 +298,7 @@ var bulletMgr = {
 	enemyBullets: [],
 	renderEnemyBullets: function() {
 		this.enemyBullets.forEach(item => {
-			scene.add(item);
+			scene.add(item.mesh);
 		})
 	},
 	newBullet: function(scale) {
