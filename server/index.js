@@ -18,7 +18,6 @@ var enPos = {x: +50, y: 0, z: +50};
 
 io.on('connection', function (socket) {
 	console.log('Player Connected: ' + socket.id);
-	var enemySocket = (player1Socket === socket)? player2Socket: player1Socket;
 
 	socket.on('requestIDS', function (data) {
 		playerIndex++;
@@ -37,19 +36,23 @@ io.on('connection', function (socket) {
 	});
 
 	socket.on('myPlayerDetails', function (details) {
+		var enemySocket = (player1Socket === socket)? player2Socket: player1Socket;
 		if(enemySocket) enemySocket.emit('myEnemyDetails', details);
 
 	});
 
 	socket.on('leftClick', function(data) {
+		var enemySocket = (player1Socket === socket)? player2Socket: player1Socket;
 		if(enemySocket) enemySocket.emit('bulletFired', undefined);
 	});
 
 	socket.on('tileRemove', function(row, col) {
+		var enemySocket = (player1Socket === socket)? player2Socket: player1Socket;
 		if(enemySocket) enemySocket.emit('tileRemove', row, col);
 	});
 
 	socket.on('EnemyHit', function(){
+		var enemySocket = (player1Socket === socket)? player2Socket: player1Socket;
 		if(enemySocket) enemySocket.emit('PlayerHit', undefined);
 	});
 });

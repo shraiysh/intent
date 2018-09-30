@@ -68,6 +68,7 @@ var printInfo = false; //Debug only
 class Player {
 	constructor(camera, position, color) {
 		this.uid = undefined;
+		this.lastFireTime = undefined;
 		this.material = Physijs.createMaterial( new T.MeshPhongMaterial( { color: color , transparent: true} ), 0, 1);
 		this.imageMaterial = new T.MeshPhongMaterial( { color: color , transparent: true} );
 		this.dubba = new Physijs.BoxMesh( new T.BoxGeometry(1, 2, 1), undefined, 1 );
@@ -151,7 +152,7 @@ class Player {
 			isMoving : false,
 			factor : 0.001,		// Factor with which size is to be increased with movement
 			movingOpacity : 0.7,
-			stopOpacity : 0.5,
+			stopOpacity : 0.05,
 			maxScale : 10 * 1.732,
 
 			moving : function ( player , dT) {
@@ -223,6 +224,24 @@ class Player {
 		}
 		else this.teleport.teleporting = false;
 
+		if(this.lastFireTime) {
+			var time = new Date();
+			var delT = (time.getSeconds() - this.lastFireTime.getSeconds()) 
+				+ (time.getMilliseconds() - this.lastFireTime.getMilliseconds())/1000;
+			if(delT < 2)
+				this.material.opacity = this.motionEffect.movingOpacity;
+		}
+
+		if(this.dubba.position.x > 40 && this.dubba.position.z > 40 && this.dubba.scale.x < 2){
+			this.dubba.position.set(15, this.dubba.position.y, 15);
+			this.dubba.__dirtyPosition = true;
+		}
+		if(this.dubba.position.x < -40 && this.dubba.position.z < -40 && this.dubba.scale.x < 2){
+			this.dubba.position.set(35, this.dubba.position.y, 35);
+			this.dubba.__dirtyPosition = true;
+		}
+
+
 		//Send Camera location, player location and flags to the server
 		if(this.uid > 0){
 			var details = {};
@@ -240,7 +259,7 @@ class Player {
 //And set enemy state to the received state 
 
 var enemy = new Player(EnemyCamera, undefined, 0xff0000);
-enemy.isEnemy = true;
+enemy.dubba.isEnemy = true;
 var player = new Player(camera, undefined, 0x00ff00);
 
 var addInputListeners = function(playerObject){
@@ -257,6 +276,7 @@ var addInputListeners = function(playerObject){
 	var onMouseDown = function (event) {
 		if(event.button === 0){ //First Click
 			socket.emit('leftClick', undefined);
+			playerObject.lastFireTime = new Date();
 			var dir = playerObject.camera.position.clone().negate();
 			var pos = new T.Vector3();
 			playerObject.camera.getWorldPosition(pos);
@@ -291,6 +311,7 @@ var addSocketEvents = function(socket, player, enemy) {
 	});
 
 	socket.on('bulletFired', function(data) {
+		enemy.lastFireTime = new Date();
 		var dir = new T.Vector3();
 		var pos = new T.Vector3();
 		enemy.camera.getWorldPosition(pos);
