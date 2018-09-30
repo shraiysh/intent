@@ -45,6 +45,8 @@ var room = {
 					this.material, 0);
 				t.mesh[row][col].position.set( -t.width/2 + (row - 0.5) * bWid, t.yPos, -t.length/2 + (col - 0.5) * bLen );
 				t.mesh[row][col].isWall = true;
+				t.mesh[row][col].row = row;
+				t.mesh[row][col].col = col;
 			}
 		}
 		this.light.position.set(0, 15, 0);
@@ -73,6 +75,7 @@ class Player {
 		this.keyIndexMap = [['a', 0], ['s', 1], ['d', 2], ['w', 3], ['e', 4], ['q', 5], [' ', 6]];
 		this.speed = 35;
 		this.camOffset = 3;
+		this.initialCamOffset = 3;
 		this.camera = camera;
 		this.minSize = new T.Vector3 ( 1, 2, 1 );
 		this.clones = Array(0);	// Every element contains an isAlive after it's created
@@ -106,7 +109,8 @@ class Player {
 					scene.add(clone);
 				}
 				clone.add(player.cloneEffect.mesh);
-				player.dubba.scale.set( player.dubba.scale.x / 2, player.dubba.scale.y / 2, player.dubba.scale.z / 2 );	
+				player.dubba.scale.multiplyScalar(0.5);
+				player.camOffset *= 0.5;	
 				player.clones.push(clone);
 			},
 			continueCloning: function(player) {
@@ -166,11 +170,12 @@ class Player {
 				if(player.flag[1]) disp.add(lookVector.negate());
 
 				disp.normalize().multiplyScalar(player.speed);
-				if(player.flag[6]) disp.y = player.speed;
+				if(player.flag[6]) disp.y = player.speed; //debugging
 
 				// Player size
 				if ( player.dubba.scale.length() < this.maxScale) {
 					player.dubba.scale.addScalar(dT * this.factor);
+					player.camOffset += 2 * dT * this.factor;
 				}
 
 				player.dubba.setLinearVelocity(disp);
@@ -231,6 +236,13 @@ class Player {
 	}
 }
 
+//Receive Camera location, player location and flags from the server
+//And set enemy state to the received state 
+
+var enemy = new Player(EnemyCamera, undefined, 0xff0000);
+enemy.isEnemy = true;
+var player = new Player(camera, undefined, 0x00ff00);
+
 var addInputListeners = function(playerObject){
 	var keyHandling = function (event, val) {
 		playerObject.keyIndexMap.filter((item) => item[0] === event.key )
@@ -245,11 +257,10 @@ var addInputListeners = function(playerObject){
 	var onMouseDown = function (event) {
 		if(event.button === 0){ //First Click
 			socket.emit('leftClick', undefined);
-			var dir = new T.Vector3();
+			var dir = playerObject.camera.position.clone().negate();
 			var pos = new T.Vector3();
 			playerObject.camera.getWorldPosition(pos);
-			dir = new T.Vector3(-playerObject.camera.position.x, -playerObject.camera.position.y,-playerObject.camera.position.z);
-			dir.y += playerObject.camOffset;
+			dir.y += playerObject.initialCamOffset;
 			bulletMgr.createBullet(dir, pos, playerObject.dubba.scale.x);
 		}
 	}
@@ -259,42 +270,46 @@ var addInputListeners = function(playerObject){
 	document.addEventListener("mousedown", onMouseDown, false);
 }
 
-//Receive Camera location, player location and flags from the server
-//And set enemy state to the received state 
+var addSocketEvents = function(socket, player, enemy) {
 
+	socket.on('processIDS', function (plID, enID, plPos, enPos) {
+		player.uid = plID;
+		enemy.uid = enID;
+		player.dubba.position.set(plPos.x, plPos.y, plPos.z);
+	    player.dubba.__dirtyPosition = true;
+		enemy.dubba.position.set(enPos.x, enPos.y, enPos.z);
+	    enemy.dubba.__dirtyPosition = true;
+		if(plID && enID) console.log('ID Reception Succeeded:', plID, enID);
+	});
 
-var enemy = new Player(EnemyCamera, undefined, 0xff0000);
-var player = new Player(camera, undefined, 0x00ff00);
-// player.addToScene();
+	socket.on('myEnemyDetails', function(details){
+		enemy.flag = details.flag;
+		enemy.camera.position.set(details.camPos.x, details.camPos.y, details.camPos.z);
+		enemy.dubba.position.set(details.playerPos.x, details.playerPos.y, details.playerPos.z);
+	    enemy.dubba.__dirtyPosition = true;
+	    
+	});
 
-socket.on('processIDS', function (plID, enID, plPos, enPos) {
-	player.uid = plID;
-	enemy.uid = enID;
-	player.dubba.position.set(plPos.x, plPos.y, plPos.z);
-    player.dubba.__dirtyPosition = true;
-	enemy.dubba.position.set(enPos.x, enPos.y, enPos.z);
-    enemy.dubba.__dirtyPosition = true;
-	if(plID && enID) console.log('ID Reception Succeeded:', plID, enID);
-});
+	socket.on('bulletFired', function(data) {
+		var dir = new T.Vector3();
+		var pos = new T.Vector3();
+		enemy.camera.getWorldPosition(pos);
+		dir = new T.Vector3(-enemy.camera.position.x, -enemy.camera.position.y,-enemy.camera.position.z);
+		dir.y += enemy.camOffset;
+		bulletMgr.createBullet(dir, pos, enemy.dubba.scale.x);
+	});
 
-socket.on('myEnemyDetails', function(details){
-	enemy.flag = details.flag;
-	enemy.camera.position.set(details.camPos.x, details.camPos.y, details.camPos.z);
-	enemy.dubba.position.set(details.playerPos.x, details.playerPos.y, details.playerPos.z);
-    enemy.dubba.__dirtyPosition = true;
-    
-});
+	socket.on('tileRemove', function(row, col) {
+		scene.remove(room.floor.mesh[row][col]);
+	});
 
-socket.on('bulletFired', function(data) {
-	var dir = new T.Vector3();
-	var pos = new T.Vector3();
-	enemy.camera.getWorldPosition(pos);
-	dir = new T.Vector3(-enemy.camera.position.x, -enemy.camera.position.y,-enemy.camera.position.z);
-	dir.y += enemy.camOffset;
-	bulletMgr.createBullet(dir, pos, enemy.dubba.scale.x);
-})
+	socket.on('PlayerHit', function(data) {
+		alert('You Lose!');
+	});
 
-socket.emit('requestIDS', undefined);
+	socket.emit('requestIDS', undefined);
+
+}
 
 var bulletMgr = {
 	bullets: [],
@@ -314,7 +329,12 @@ var bulletMgr = {
 		this.bullets.push(temp);
 		temp.mesh.addEventListener('collision', function( other_object, rel_velocity, rel_rotation, normal ) {
 			if(other_object.isWall){
+				socket.emit('tileRemove', other_object.row, other_object.col);
 				scene.remove(other_object);
+			}
+			else if(other_object.isEnemy){
+				socket.emit('EnemyHit', undefined);
+				alert('You Won!');
 			}
     	});
 		scene.add(temp.mesh);
@@ -355,4 +375,5 @@ var calcFPS = function () {
 
 room.init();
 addInputListeners(player);
+addSocketEvents(socket, player, enemy);
 animate();
