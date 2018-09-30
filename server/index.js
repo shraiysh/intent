@@ -40,6 +40,11 @@ io.on('connection', function (socket) {
 		if(enemySocket) enemySocket.emit('myEnemyDetails', details);
 
 	});
+
+	socket.on('leftClick', function(data) {
+		var enemySocket = (player1Socket === socket)? player2Socket: player1Socket;
+		if(enemySocket) enemySocket.emit('bulletFired', undefined);
+	})
 });
 
 

@@ -3,6 +3,8 @@ var frames = 0, lasFrameTime = new Date(), fps;
 
 Physijs.scripts.worker = 'js/physijs_worker.js';
 Physijs.scripts.ammo = 'ammo.js';
+var socket = io('http://localhost');
+
 
 var scene = new Physijs.Scene;
 scene.setGravity({x: 0, y: -100, z: 0});
@@ -242,6 +244,7 @@ var addInputListeners = function(playerObject){
 	}
 	var onMouseDown = function (event) {
 		if(event.button === 0){ //First Click
+			socket.emit('leftClick', undefined);
 			var dir = new T.Vector3();
 			var pos = new T.Vector3();
 			playerObject.camera.getWorldPosition(pos);
@@ -264,7 +267,6 @@ var enemy = new Player(EnemyCamera, undefined, 0xff0000);
 var player = new Player(camera, undefined, 0x00ff00);
 // player.addToScene();
 
-var socket = io('http://localhost');
 socket.on('processIDS', function (plID, enID, plPos, enPos) {
 	player.uid = plID;
 	enemy.uid = enID;
@@ -280,27 +282,22 @@ socket.on('myEnemyDetails', function(details){
 	enemy.camera.position.set(details.camPos.x, details.camPos.y, details.camPos.z);
 	enemy.dubba.position.set(details.playerPos.x, details.playerPos.y, details.playerPos.z);
     enemy.dubba.__dirtyPosition = true;
-    console.log(details.bullets);
-    bulletMgr.enemyBullets.forEach(item => {
-    	scene.remove(item.mesh);
-    });
-    bulletMgr.enemyBullets = [];
-    details.bullets.forEach(item => {
-    	bulletMgr.enemyBullets.push(item);
-    });
-    bulletMgr.renderEnemyBullets();
+    
 });
+
+socket.on('bulletFired', function(data) {
+	var dir = new T.Vector3();
+	var pos = new T.Vector3();
+	enemy.camera.getWorldPosition(pos);
+	dir = new T.Vector3(-enemy.camera.position.x, -enemy.camera.position.y,-enemy.camera.position.z);
+	dir.y += enemy.camOffset;
+	bulletMgr.createBullet(dir, pos, enemy.dubba.scale.x);
+})
 
 socket.emit('requestIDS', undefined);
 
 var bulletMgr = {
 	bullets: [],
-	enemyBullets: [],
-	renderEnemyBullets: function() {
-		this.enemyBullets.forEach(item => {
-			scene.add(item.mesh);
-		})
-	},
 	newBullet: function(scale) {
 		return {
 			mesh: new Physijs.SphereMesh( 
